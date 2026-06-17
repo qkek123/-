@@ -175,7 +175,15 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
 .pool-person.custom-selected{background:#dbeeff !important;border-color:#1976d2 !important}
 .pool-person.custom-selected .pool-person-name{color:#1565c0}
 
-/* Action row */
+/* grade badge 클릭 팝업 */
+.grade-popup-wrap{position:relative;display:inline-block;flex-shrink:0}
+.grade-popup{position:absolute;top:calc(100% + 4px);left:0;z-index:999;background:#fff;border:1px solid #ccc;border-radius:6px;box-shadow:0 3px 10px rgba(0,0,0,.18);padding:4px;display:none;flex-direction:column;gap:2px;min-width:90px}
+.grade-popup.open{display:flex}
+.grade-popup-item{padding:5px 10px;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;border:none;background:none;text-align:left;font-family:inherit}
+.grade-popup-item:hover{background:#f0f4fb}
+.grade-popup-item.active{background:#e8edf5;color:#1a2e4a}
+.grade-badge{cursor:pointer;user-select:none}
+.grade-badge:hover{opacity:.85}
 .action-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
 
 /* Scrollable table wrapper */
@@ -374,9 +382,9 @@ function _loadJsonFile(f){
         if(!snaps.find(s=>s.label===snap.label)){ snaps.unshift(snap); if(snaps.length>10) snaps.length=10; localStorage.setItem(STORAGE_KEY, JSON.stringify(snaps)); }
       } catch(e){}
       renderSavedList();
-      // 파일명 표시
-      const nameEl = document.getElementById('json-load-name');
-      if(nameEl){ nameEl.textContent = f.name; document.getElementById('json-load-zone').classList.add('has-file'); }
+      // 파일명 노출 없이 드롭존 원상복귀
+      const zone = document.getElementById('json-load-zone');
+      if(zone){ zone.classList.remove('has-file'); }
     } catch(e){ alert('불러오기 실패: ' + e.message); }
   };
   reader.readAsText(f, 'UTF-8');
@@ -714,19 +722,25 @@ function renderTable(){
   document.getElementById('top-actions').style.display = '';
   document.getElementById('project-title').textContent = parsedData.projectTitle;
 
-  const { stages } = parsedData;
+  const { stages, personGradeMap: pgm } = parsedData;
 
-  let totalAudit = 0, totalExpert = 0;
+  let totalAudit = 0, totalExpertOnly = 0, totalTester = 0;
   stages.forEach(s => {
     if(s.감리원) totalAudit += s.감리원.total;
-    if(s.전문가) totalExpert += s.전문가.total;
+    if(s.전문가) s.전문가.people.forEach(p => {
+      const grp = (pgm[p.name] || {}).group || '';
+      const md = (p.pre||0) + (p.audit||0) + (p.post||0);
+      if(grp === '테스터') totalTester += md;
+      else totalExpertOnly += md;
+    });
   });
-  const totalAll = totalAudit + totalExpert;
+  const totalAll = totalAudit + totalExpertOnly + totalTester;
 
   document.getElementById('summary-bar').innerHTML = `
     <div class="summary-item"><div class="val">${stages.length}</div><div class="lbl">총 단계</div></div>
     <div class="summary-item"><div class="val" style="color:#1a2e4a">${totalAudit}</div><div class="lbl">감리원 MD</div></div>
-    <div class="summary-item"><div class="val" style="color:#1b5e20">${totalExpert}</div><div class="lbl">전문가 MD</div></div>
+    <div class="summary-item"><div class="val" style="color:#1b5e20">${totalExpertOnly}</div><div class="lbl">전문가 MD</div></div>
+    <div class="summary-item"><div class="val" style="color:#6a1b9a">${totalTester}</div><div class="lbl">테스터 MD</div></div>
     <div class="summary-item"><div class="val" style="color:#e65100">${totalAll}</div><div class="lbl">총 제안 MD</div></div>
   `;
 
@@ -936,10 +950,27 @@ function applyDiff(){
   let diffCount = 0;
 
   // summary-bar diff
-  let baseAudit = 0, baseExpert = 0, compAudit = 0, compExpert = 0;
-  base.forEach(s => { if(s.감리원) baseAudit += s.감리원.total; if(s.전문가) baseExpert += s.전문가.total; });
-  comp.forEach(s => { if(s.감리원) compAudit += s.감리원.total; if(s.전문가) compExpert += s.전문가.total; });
-  const baseTotal = baseAudit + baseExpert, compTotal = compAudit + compExpert;
+  let baseAudit = 0, baseExpertOnly = 0, baseTester = 0;
+  let compAudit = 0, compExpertOnly = 0, compTester = 0;
+  const pgm = parsedData.personGradeMap || {};
+  base.forEach(s => {
+    if(s.감리원) baseAudit += s.감리원.total;
+    if(s.전문가) s.전문가.people.forEach(p => {
+      const grp = (pgm[p.name]||{}).group||'';
+      const md = (p.pre||0)+(p.audit||0)+(p.post||0);
+      if(grp==='테스터') baseTester += md; else baseExpertOnly += md;
+    });
+  });
+  comp.forEach(s => {
+    if(s.감리원) compAudit += s.감리원.total;
+    if(s.전문가) s.전문가.people.forEach(p => {
+      const grp = (pgm[p.name]||{}).group||'';
+      const md = (p.pre||0)+(p.audit||0)+(p.post||0);
+      if(grp==='테스터') compTester += md; else compExpertOnly += md;
+    });
+  });
+  const baseTotal = baseAudit + baseExpertOnly + baseTester;
+  const compTotal = compAudit + compExpertOnly + compTester;
 
   function diffNum(base, comp){
     if(base === comp) return '';
@@ -952,7 +983,8 @@ function applyDiff(){
   document.getElementById('summary-bar').innerHTML = `
     <div class="summary-item"><div class="val">${base.length}${base.length !== comp.length ? `<span style="font-size:13px;color:#e65100"> (비교: ${comp.length})</span>` : ''}</div><div class="lbl">총 단계</div></div>
     <div class="summary-item"><div class="val" style="color:#1a2e4a">${baseAudit}${diffNum(baseAudit,compAudit)}</div><div class="lbl">감리원 MD</div></div>
-    <div class="summary-item"><div class="val" style="color:#1b5e20">${baseExpert}${diffNum(baseExpert,compExpert)}</div><div class="lbl">전문가 MD</div></div>
+    <div class="summary-item"><div class="val" style="color:#1b5e20">${baseExpertOnly}${diffNum(baseExpertOnly,compExpertOnly)}</div><div class="lbl">전문가 MD</div></div>
+    <div class="summary-item"><div class="val" style="color:#6a1b9a">${baseTester}${diffNum(baseTester,compTester)}</div><div class="lbl">테스터 MD</div></div>
     <div class="summary-item"><div class="val" style="color:#e65100">${baseTotal}${diffNum(baseTotal,compTotal)}</div><div class="lbl">총 제안 MD</div></div>
   `;
 
@@ -1041,14 +1073,22 @@ function toggleDiff(){
     });
     attachChipHandlers();
     // summary 원복
-    const { stages: stgs } = parsedData;
-    let totalAudit = 0, totalExpert = 0;
-    stgs.forEach(s => { if(s.감리원) totalAudit += s.감리원.total; if(s.전문가) totalExpert += s.전문가.total; });
+    const { stages: stgs, personGradeMap: pgm2 } = parsedData;
+    let totalAudit2 = 0, totalExpertOnly2 = 0, totalTester2 = 0;
+    stgs.forEach(s => {
+      if(s.감리원) totalAudit2 += s.감리원.total;
+      if(s.전문가) s.전문가.people.forEach(p => {
+        const grp = (pgm2[p.name]||{}).group||'';
+        const md = (p.pre||0)+(p.audit||0)+(p.post||0);
+        if(grp==='테스터') totalTester2 += md; else totalExpertOnly2 += md;
+      });
+    });
     document.getElementById('summary-bar').innerHTML = `
       <div class="summary-item"><div class="val">${stgs.length}</div><div class="lbl">총 단계</div></div>
-      <div class="summary-item"><div class="val" style="color:#1a2e4a">${totalAudit}</div><div class="lbl">감리원 MD</div></div>
-      <div class="summary-item"><div class="val" style="color:#1b5e20">${totalExpert}</div><div class="lbl">전문가 MD</div></div>
-      <div class="summary-item"><div class="val" style="color:#e65100">${totalAudit+totalExpert}</div><div class="lbl">총 제안 MD</div></div>
+      <div class="summary-item"><div class="val" style="color:#1a2e4a">${totalAudit2}</div><div class="lbl">감리원 MD</div></div>
+      <div class="summary-item"><div class="val" style="color:#1b5e20">${totalExpertOnly2}</div><div class="lbl">전문가 MD</div></div>
+      <div class="summary-item"><div class="val" style="color:#6a1b9a">${totalTester2}</div><div class="lbl">테스터 MD</div></div>
+      <div class="summary-item"><div class="val" style="color:#e65100">${totalAudit2+totalExpertOnly2+totalTester2}</div><div class="lbl">총 제안 MD</div></div>
     `;
     document.getElementById('diff-bar').style.display = 'none';
   }
@@ -1185,13 +1225,14 @@ function renderPersonnelPool(){
   function renderPoolPerson(name, info){
     const effGrade = getEffectiveGrade(name, info);
     const badgeClass = effGrade === '확인필요' ? 'grade-확인필요' : `grade-${effGrade}`;
-    const warn = effGrade === '확인필요' ? `<span class="pool-warning">⚠️ 확인 필요</span>` : '';
     const field = info.field || '';
     const isCustom = customSelectedNames.has(name);
     const customCls = isCustom ? ' custom-selected' : '';
     const mdStr = `${info.pre}:${info.audit}:${info.post}`;
-    const selectOptions = ['수석감리원','감리원','전문가'].map(g =>
-      `<option value="${g}"${(gradeOverrides[name]||'') === g ? ' selected' : ''}>${g}</option>`
+    const grades = ['자동','수석감리원','감리원','전문가'];
+    const cur = gradeOverrides[name] || '';
+    const popupItems = grades.map(g =>
+      `<button class="grade-popup-item${cur===g||(!cur&&g==='자동')?' active':''}" onclick="setGradeOverride('${name}','${g==='자동'?'':g}');closeGradePopup()">${g}</button>`
     ).join('');
     const fieldSpan = field
       ? `<span class="pool-person-field" data-field="${field}" onclick="onFieldLabelClick(event,'${CSS.escape(field)}')">${field}</span>`
@@ -1199,14 +1240,12 @@ function renderPersonnelPool(){
     return `<div class="pool-person${customCls}" data-name="${name}" data-field="${field}" onclick="onPoolPersonClick(event,'${name}','${CSS.escape(field)}')">
       ${fieldSpan ? `<div>${fieldSpan}</div>` : ''}
       <div class="pool-person-row">
-        <span class="grade-badge ${badgeClass}">${effGrade}</span>
+        <div class="grade-popup-wrap">
+          <span class="grade-badge ${badgeClass}" onclick="event.stopPropagation();toggleGradePopup(this)">${effGrade}</span>
+          <div class="grade-popup">${popupItems}</div>
+        </div>
         <span class="pool-person-name">${name}</span>
         <span class="pool-person-mds" style="flex:1">${mdStr}</span>
-        ${warn}
-        <select class="pool-person-select" onclick="event.stopPropagation()" onchange="setGradeOverride('${name}', this.value)">
-          <option value="">자동</option>
-          ${selectOptions}
-        </select>
       </div>
     </div>`;
   }
@@ -1277,6 +1316,19 @@ function onPoolPersonClick(e, name, field){
   activeHL = { name, field };
   highlightByName(name, field);
 }
+
+function toggleGradePopup(badgeEl){
+  closeGradePopup(badgeEl); // 다른 팝업 닫기
+  const popup = badgeEl.nextElementSibling;
+  popup.classList.toggle('open');
+}
+function closeGradePopup(except){
+  document.querySelectorAll('.grade-popup.open').forEach(p => {
+    if(except && p.previousElementSibling === except) return;
+    p.classList.remove('open');
+  });
+}
+document.addEventListener('click', () => closeGradePopup());
 
 function setGradeOverride(name, value){
   if(value) gradeOverrides[name] = value;
