@@ -44,7 +44,14 @@ h3{font-size:15px;font-weight:600;color:#1a2e4a}
 button{cursor:pointer;border:none;border-radius:5px;padding:7px 14px;font-size:14px;font-family:inherit;font-weight:600;transition:all .15s}
 .btn-sm{padding:5px 10px;font-size:13px}
 
-/* Expert input */
+/* JSON 불러오기 드롭존 - 저장/불러오기 전용 */
+.json-drop-zone{border:2px dashed #9575cd;border-radius:8px;padding:12px;text-align:center;cursor:pointer;transition:all .2s;background:#f5f0ff;position:relative}
+.json-drop-zone:hover,.json-drop-zone.drag-over{border-color:#673ab7;background:#ede7f6}
+.json-drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.json-drop-zone .icon{font-size:20px;margin-bottom:4px;color:#7e57c2}
+.json-drop-zone p{font-size:12px;color:#7e57c2;line-height:1.4}
+.json-drop-zone.has-file{border-style:solid;border-color:#673ab7;background:#ede7f6}
+.json-drop-zone .file-name{font-size:12px;color:#673ab7;font-weight:600;margin-top:4px;word-break:break-all}
 #expert-section textarea{width:100%;height:100px;border:1px solid #ccc;border-radius:5px;padding:8px;font-size:13px;font-family:inherit;resize:vertical}
 #expert-section label{font-size:13px;color:#555;display:block;margin-bottom:4px}
 
@@ -91,7 +98,7 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
 .diff-chip-deleted{background:#ffebee !important;border-color:#e53935 !important;text-decoration:line-through;opacity:.7}
 /* tooltip */
 [data-diff-tip]{position:relative;cursor:help}
-[data-diff-tip]:hover::after{content:attr(data-diff-tip);position:absolute;z-index:999;bottom:110%;left:50%;transform:translateX(-50%);background:#333;color:#fff;font-size:12px;padding:4px 8px;border-radius:4px;white-space:nowrap;pointer-events:none;font-weight:400}
+#diff-tooltip{position:fixed;z-index:9999;background:#333;color:#fff;font-size:12px;padding:6px 10px;border-radius:5px;pointer-events:none;max-width:280px;line-height:1.6;white-space:normal;word-break:break-all;display:none;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 
 /* 시정조치 강조 */
 .조치-hl{background:#fff0f0 !important;border:2px solid #c62828 !important;border-radius:5px;box-shadow:0 0 6px rgba(198,40,40,0.4)}
@@ -189,6 +196,7 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
 </style>
 </head>
 <body>
+<div id="diff-tooltip"></div>
 <div id="app">
 <div id="topbar">
   <h1>📋 감리 일정 분석기</h1>
@@ -228,12 +236,15 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
   <div id="compare-section" style="display:none">
     <h3 style="margin-bottom:6px">🔍 비교 파일 업로드</h3>
     <div class="upload-zone" id="compare-zone">
-      <input type="file" accept=".html,.htm" id="compare-file-input">
+      <input type="file" accept=".html,.htm,.json" id="compare-file-input">
       <div class="icon">🔄</div>
-      <p>비교할 HTML 파일을 선택<br>(달라진 내용을 🔴 표시)</p>
+      <p>비교할 HTML / JSON 파일을 선택<br>(달라진 내용을 🔴 표시)</p>
       <div class="file-name" id="compare-file-name"></div>
     </div>
-    <button class="btn-gray btn-sm" style="width:100%;margin-top:6px" onclick="clearCompare()">비교 초기화</button>
+    <div style="display:flex;gap:6px;margin-top:6px">
+      <button class="btn-gray btn-sm" style="flex:1" onclick="clearCompare()">🗑 비교 초기화</button>
+      <button class="btn-gray btn-sm" style="flex:1" id="toggle-diff-btn" onclick="toggleDiff()" disabled>👁 비교 숨기기</button>
+    </div>
   </div>
 
   <div id="action-section" style="display:none">
@@ -309,6 +320,7 @@ let activeHL = null;
 let checkedCells = new Set();
 let correctionMode = false;
 let gradeOverrides = {};
+let diffVisible = true;
 
 // ── 저장/불러오기 ──────────────────────────────────────────────
 // 주 저장: JSON 파일 내보내기/불러오기 (깃허브·file:// 환경 완벽 호환)
@@ -350,28 +362,30 @@ function saveSnapshot(){
   alert(`✅ 저장 완료: ${label}.json\n파일이 다운로드됐습니다. 다음번에 "JSON 불러오기"로 복원하세요.`);
 }
 
+function _loadJsonFile(f){
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try{
+      const snap = JSON.parse(ev.target.result);
+      if(!snap.data || !snap.label) throw new Error('유효하지 않은 저장 파일입니다.');
+      _applySnapshot(snap);
+      try{
+        const snaps = getSavedSnapshots();
+        if(!snaps.find(s=>s.label===snap.label)){ snaps.unshift(snap); if(snaps.length>10) snaps.length=10; localStorage.setItem(STORAGE_KEY, JSON.stringify(snaps)); }
+      } catch(e){}
+      renderSavedList();
+      // 파일명 표시
+      const nameEl = document.getElementById('json-load-name');
+      if(nameEl){ nameEl.textContent = f.name; document.getElementById('json-load-zone').classList.add('has-file'); }
+    } catch(e){ alert('불러오기 실패: ' + e.message); }
+  };
+  reader.readAsText(f, 'UTF-8');
+}
+
 function loadSnapshotFromFile(){
   const input = document.createElement('input');
   input.type = 'file'; input.accept = '.json';
-  input.onchange = e => {
-    const f = e.target.files[0]; if(!f) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try{
-        const snap = JSON.parse(ev.target.result);
-        if(!snap.data || !snap.label) throw new Error('유효하지 않은 저장 파일입니다.');
-        _applySnapshot(snap);
-        // localStorage 캐시에도 추가
-        try{
-          const snaps = getSavedSnapshots();
-          if(!snaps.find(s=>s.label===snap.label)) { snaps.unshift(snap); if(snaps.length>10) snaps.length=10; localStorage.setItem(STORAGE_KEY, JSON.stringify(snaps)); }
-        } catch(e){}
-        renderSavedList();
-        alert(`✅ 불러오기 완료: ${snap.label}`);
-      } catch(e){ alert('불러오기 실패: ' + e.message); }
-    };
-    reader.readAsText(f, 'UTF-8');
-  };
+  input.onchange = e => { const f = e.target.files[0]; if(!f) return; _loadJsonFile(f); };
   input.click();
 }
 
@@ -403,13 +417,32 @@ function renderSavedList(){
   const sec = document.getElementById('saved-section');
   const list = document.getElementById('saved-list');
   sec.style.display='';
-  list.innerHTML = `<div style="margin-bottom:6px">
-    <button class="btn-save btn-sm" style="width:100%" onclick="loadSnapshotFromFile()">📂 JSON 파일 불러오기</button>
-  </div>` + (snaps.length ? '<div style="font-size:11px;color:#888;margin-bottom:4px">최근 캐시</div>' + snaps.map((s,i)=>
+  list.innerHTML = `<div class="json-drop-zone" id="json-load-zone">
+    <input type="file" accept=".json" id="json-load-input">
+    <div class="icon">📂</div>
+    <p>JSON 파일을 선택하거나<br>드래그 &amp; 드롭</p>
+    <div class="file-name" id="json-load-name"></div>
+  </div>` + (snaps.length ? '<div style="font-size:11px;color:#888;margin-top:8px;margin-bottom:4px">최근 캐시</div>' + snaps.map((s,i)=>
     `<div class="saved-item">
       <span class="saved-item-name" title="${s.label}" onclick="loadSnapshot(${i})">🕐 ${s.label}</span>
       <button class="saved-item-del" onclick="deleteSnapshot(${i})">🗑</button>
     </div>`).join('') : '');
+
+  // input change
+  document.getElementById('json-load-input').addEventListener('change', function(e){
+    const f = e.target.files[0]; if(!f) return;
+    _loadJsonFile(f);
+  });
+
+  // drag & drop
+  const zone = document.getElementById('json-load-zone');
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault(); zone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0]; if(!f) return;
+    _loadJsonFile(f);
+  });
 }
 
 // 페이지 로드 시 저장 목록 표시
@@ -434,8 +467,16 @@ document.getElementById('compare-file-input').addEventListener('change', functio
   document.getElementById('compare-zone').classList.add('has-file');
   const reader = new FileReader();
   reader.onload = ev => {
-    compareData = parsePortalHTML(ev.target.result);
-    if(compareData) applyDiff();
+    if(f.name.toLowerCase().endsWith('.json')){
+      try{
+        const snap = JSON.parse(ev.target.result);
+        compareData = snap.data || snap;
+        if(compareData) applyDiff();
+      } catch(e){ alert('JSON 파싱 실패: ' + e.message); }
+    } else {
+      compareData = parsePortalHTML(ev.target.result);
+      if(compareData) applyDiff();
+    }
   };
   reader.readAsText(f, 'UTF-8');
 });
@@ -886,17 +927,42 @@ function calcCustomExpertMD(stage, experts){
 // ── DIFF / COMPARE (업그레이드) ─────────────────────────────────
 function applyDiff(){
   if(!parsedData || !compareData) return;
-  const base = parsedData.stages;
-  const comp = compareData.stages;
+  diffVisible = true;
+  const btn = document.getElementById('toggle-diff-btn');
+  if(btn){ btn.disabled = false; btn.textContent = '👁 비교 숨기기'; }
+
+  const base = parsedData.stages;   // 기준 (JSON으로 불러온 파일)
+  const comp = compareData.stages;  // 비교 (수정본)
   let diffCount = 0;
 
-  // helper: 숫자/문자열 비교 후 셀 강조
+  // summary-bar diff
+  let baseAudit = 0, baseExpert = 0, compAudit = 0, compExpert = 0;
+  base.forEach(s => { if(s.감리원) baseAudit += s.감리원.total; if(s.전문가) baseExpert += s.전문가.total; });
+  comp.forEach(s => { if(s.감리원) compAudit += s.감리원.total; if(s.전문가) compExpert += s.전문가.total; });
+  const baseTotal = baseAudit + baseExpert, compTotal = compAudit + compExpert;
+
+  function diffNum(base, comp){
+    if(base === comp) return '';
+    const delta = base - comp;
+    const sign = delta > 0 ? '+' : '';
+    const color = delta > 0 ? '#e65100' : '#1565c0';
+    return ` <span style="font-size:13px;font-weight:700;color:${color}">(${sign}${delta})</span>`;
+  }
+
+  document.getElementById('summary-bar').innerHTML = `
+    <div class="summary-item"><div class="val">${base.length}${base.length !== comp.length ? `<span style="font-size:13px;color:#e65100"> (비교: ${comp.length})</span>` : ''}</div><div class="lbl">총 단계</div></div>
+    <div class="summary-item"><div class="val" style="color:#1a2e4a">${baseAudit}${diffNum(baseAudit,compAudit)}</div><div class="lbl">감리원 MD</div></div>
+    <div class="summary-item"><div class="val" style="color:#1b5e20">${baseExpert}${diffNum(baseExpert,compExpert)}</div><div class="lbl">전문가 MD</div></div>
+    <div class="summary-item"><div class="val" style="color:#e65100">${baseTotal}${diffNum(baseTotal,compTotal)}</div><div class="lbl">총 제안 MD</div></div>
+  `;
+
+  // helper: 셀 강조
   function markCell(ci, baseVal, compVal){
     if(String(baseVal) !== String(compVal)){
       const td = document.querySelector(`td[data-ci="${ci}"]`);
       if(td){
         td.classList.add('diff-changed');
-        td.setAttribute('data-diff-tip', `변경: ${compVal} → ${baseVal}`);
+        td.setAttribute('data-diff-tip', `기준: ${baseVal} / 비교: ${compVal}`);
       }
       diffCount++;
     }
@@ -904,42 +970,35 @@ function applyDiff(){
 
   base.forEach((s, si) => {
     const cs = comp[si];
-
-    // 단계명 변경
     if(!cs){
       const td = document.querySelector(`td[data-ci="stage-${si}"]`);
-      if(td){ td.classList.add('diff-added'); td.setAttribute('data-diff-tip','추가된 단계'); }
+      if(td){ td.classList.add('diff-added'); td.setAttribute('data-diff-tip','기준에만 있는 단계'); }
       diffCount++; return;
     }
 
-    if(s.stage !== cs.stage){
+    if(s.stage !== cs.stage || s.date !== cs.date){
       const td = document.querySelector(`td[data-ci="stage-${si}"]`);
-      if(td){ td.classList.add('diff-changed'); td.setAttribute('data-diff-tip',`단계명 변경: ${cs.stage} → ${s.stage}`); }
+      if(td){
+        td.classList.add('diff-changed');
+        const tips = [];
+        if(s.stage !== cs.stage) tips.push(`단계명: ${s.stage} / 비교: ${cs.stage}`);
+        if(s.date !== cs.date)   tips.push(`일정: ${s.date} / 비교: ${cs.date}`);
+        td.setAttribute('data-diff-tip', tips.join('\n'));
+      }
       diffCount++;
     }
 
-    if(s.date !== cs.date){
-      const td = document.querySelector(`td[data-ci="stage-${si}"]`);
-      if(td){ td.classList.add('diff-changed'); td.setAttribute('data-diff-tip',`일정 변경: ${cs.date} → ${s.date}`); }
-      diffCount++;
-    }
-
-    // MD 비교
     markCell(`audit-md-${si}`, s.감리원?.total||0, cs.감리원?.total||0);
     markCell(`expert-md-${si}`, s.전문가?.total||0, cs.전문가?.total||0);
+    markCell(`total-md-${si}`, (s.감리원?.total||0)+(s.전문가?.total||0), (cs.감리원?.total||0)+(cs.전문가?.total||0));
 
-    // 인력 비교 (세분화)
+    // 인력 비교 — 기준(base)에 있고 비교(comp)에 없으면 "추가됨", 반대면 "삭제됨"
     diffPeopleCell(s.감리원?.people||[], cs.감리원?.people||[], `people-audit-${si}`, si);
     diffPeopleCell(s.전문가?.people||[], cs.전문가?.people||[], `people-expert-${si}`, si);
   });
 
-  // base에 없는 comp 단계 → 삭제됨 표시는 base 기준이므로 skip (base가 최신)
-  // comp에서만 있는 단계 = base에서 삭제된 것
   comp.forEach((cs, si) => {
-    if(!base[si]){
-      diffCount++;
-      // 표에 행이 없으므로 diff-bar에만 카운트
-    }
+    if(!base[si]) diffCount++;
   });
 
   const bar = document.getElementById('diff-bar');
@@ -953,6 +1012,45 @@ function applyDiff(){
     bar.style.background = '#e8f5e9'; bar.style.borderColor = '#43a047';
     msg.style.color = '#1b5e20';
     msg.textContent = '✅ 두 파일의 내용이 동일합니다.';
+  }
+}
+
+function toggleDiff(){
+  if(!compareData) return;
+  diffVisible = !diffVisible;
+  const btn = document.getElementById('toggle-diff-btn');
+  if(diffVisible){
+    btn.textContent = '👁 비교 숨기기';
+    applyDiff();
+  } else {
+    btn.textContent = '👁 비교 표시';
+    // diff 클래스 제거 + 인력 셀 원복
+    document.querySelectorAll('td.diff-changed, td.diff-added, td.diff-deleted').forEach(td => {
+      td.classList.remove('diff-changed','diff-added','diff-deleted');
+      td.removeAttribute('data-diff-tip');
+    });
+    // 인력 셀 원복 (chip 재렌더)
+    const { stages } = parsedData;
+    stages.forEach((s, si) => {
+      const aEntry = s.감리원 || { people:[] };
+      const eEntry = s.전문가 || { people:[] };
+      const atd = document.querySelector(`td[data-ci="people-audit-${si}"]`);
+      const etd = document.querySelector(`td[data-ci="people-expert-${si}"]`);
+      if(atd) atd.innerHTML = renderPeopleChips(aEntry.people, si);
+      if(etd) etd.innerHTML = renderPeopleChips(eEntry.people, si);
+    });
+    attachChipHandlers();
+    // summary 원복
+    const { stages: stgs } = parsedData;
+    let totalAudit = 0, totalExpert = 0;
+    stgs.forEach(s => { if(s.감리원) totalAudit += s.감리원.total; if(s.전문가) totalExpert += s.전문가.total; });
+    document.getElementById('summary-bar').innerHTML = `
+      <div class="summary-item"><div class="val">${stgs.length}</div><div class="lbl">총 단계</div></div>
+      <div class="summary-item"><div class="val" style="color:#1a2e4a">${totalAudit}</div><div class="lbl">감리원 MD</div></div>
+      <div class="summary-item"><div class="val" style="color:#1b5e20">${totalExpert}</div><div class="lbl">전문가 MD</div></div>
+      <div class="summary-item"><div class="val" style="color:#e65100">${totalAudit+totalExpert}</div><div class="lbl">총 제안 MD</div></div>
+    `;
+    document.getElementById('diff-bar').style.display = 'none';
   }
 }
 
@@ -973,13 +1071,13 @@ function diffPeopleCell(basePeople, compPeople, ci, si){
     const bp = baseMap[name];
     const cp = compMap[name];
 
-    if(bp && !cp){
-      // 추가됨 (base에 있고 comp에 없음 → 새로 생긴 사람)
-      chips.push(renderChipHTML(bp, si, 'diff-chip-added', '추가됨'));
+    if(!bp && cp){
+      // 비교 파일에만 있음 → 추가됨
+      chips.push(renderChipHTML(cp, si, 'diff-chip-added', '추가됨 (비교 파일에만 있음)'));
       hasDiff = true;
-    } else if(!bp && cp){
-      // 삭제됨 (base에 없고 comp에 있음 → 사라진 사람)
-      chips.push(renderChipHTML(cp, si, 'diff-chip-deleted', '삭제됨'));
+    } else if(bp && !cp){
+      // 기준 파일에만 있음 → 삭제됨
+      chips.push(renderChipHTML(bp, si, 'diff-chip-deleted', '삭제됨 (기준 파일에만 있음)'));
       hasDiff = true;
     } else if(bp && cp){
       const bStr = `${bp.pre}:${bp.audit}:${bp.post}`;
@@ -1016,6 +1114,9 @@ function attachChipHandlerOnEl(el){
 
 function clearCompare(){
   compareData = null;
+  diffVisible = true;
+  const btn = document.getElementById('toggle-diff-btn');
+  if(btn){ btn.disabled = true; btn.textContent = '👁 비교 숨기기'; }
   document.querySelectorAll('td.diff-changed, td.diff-added, td.diff-deleted').forEach(td => {
     td.classList.remove('diff-changed','diff-added','diff-deleted');
     td.removeAttribute('data-diff-tip');
@@ -1072,7 +1173,7 @@ function renderPersonnelPool(){
 
   function getEffectiveGrade(name, info){
     if(gradeOverrides[name]) return gradeOverrides[name];
-    if(info.grade === '테스터') return '테스터';
+    if(info.grade === '테스터') return '전문가';  // 등급이 테스터여도 배지는 전문가로 표기
     if(info.grade === '전문가') return '전문가';
     if(info.grade === '수석감리원') return '수석감리원';
     if(info.grade === '감리원') return '감리원';
@@ -1124,7 +1225,8 @@ function renderPersonnelPool(){
   expertNames.forEach(name => {
     const info = expertPeople[name];
     const effGrade = getEffectiveGrade(name, info);
-    if(effGrade === '테스터' || info.group === '테스터'){
+    // group이 테스터인 경우만 테스터 칸으로, grade가 테스터여도 group이 전문가면 subGroup으로 분류
+    if(info.group === '테스터'){
       testerList.push(name);
     } else {
       const subGrp = (personGradeMap[name] || {}).expertSubGroup || info.expertSubGroup || '';
@@ -1187,6 +1289,28 @@ if(!window.CSS || !CSS.escape){
   CSS = window.CSS || {};
   CSS.escape = function(v){ return v.replace(/[\s!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g,'\\$&'); };
 }
+
+// ── JS Tooltip for data-diff-tip ──────────────────────────────
+(function(){
+  const tip = document.getElementById('diff-tooltip');
+  document.addEventListener('mouseover', function(e){
+    const el = e.target.closest('[data-diff-tip]');
+    if(!el){ tip.style.display='none'; return; }
+    const text = el.getAttribute('data-diff-tip') || '';
+    tip.innerHTML = text.split('\n').map(l => `<div>${l}</div>`).join('');
+    tip.style.display = 'block';
+  });
+  document.addEventListener('mousemove', function(e){
+    if(tip.style.display === 'none') return;
+    const x = e.clientX + 12, y = e.clientY + 14;
+    const rw = tip.offsetWidth, rh = tip.offsetHeight;
+    tip.style.left = (x + rw > window.innerWidth ? x - rw - 20 : x) + 'px';
+    tip.style.top  = (y + rh > window.innerHeight ? y - rh - 20 : y) + 'px';
+  });
+  document.addEventListener('mouseout', function(e){
+    if(!e.target.closest('[data-diff-tip]')) tip.style.display='none';
+  });
+})();
 </script>
 </body>
 </html>
