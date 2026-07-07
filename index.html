@@ -100,12 +100,27 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
 [data-diff-tip]{position:relative;cursor:help}
 #diff-tooltip{position:fixed;z-index:9999;background:#333;color:#fff;font-size:12px;padding:6px 10px;border-radius:5px;pointer-events:none;max-width:280px;line-height:1.6;white-space:normal;word-break:break-all;display:none;box-shadow:0 2px 8px rgba(0,0,0,.3)}
 
-/* 시정조치 강조 */
-.조치-hl{background:#fff0f0 !important;border:2px solid #c62828 !important;border-radius:5px;box-shadow:0 0 6px rgba(198,40,40,0.4)}
-.조치-hl .name{color:#b71c1c !important;font-weight:900;font-size:14px}
-.조치-hl .mds{color:#c62828 !important;font-size:12px}
-.조치-hl .mds-post{background:#c62828;color:#fff;border-radius:3px;padding:0 4px;font-weight:900;font-size:13px;margin-left:2px}
-.mds-post{background:#c62828;color:#fff;border-radius:3px;padding:0 4px;font-weight:900;font-size:12px;margin-left:1px}
+/* ── 업데이트 공지 팝업 ── */
+#update-notice-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10000;display:none;align-items:center;justify-content:center}
+#update-notice-overlay.open{display:flex}
+#update-notice{background:#fff;border-radius:10px;width:min(440px,90vw);max-height:80vh;overflow-y:auto;box-shadow:0 8px 30px rgba(0,0,0,.3)}
+#update-notice-head{background:#1a2e4a;color:#fff;padding:14px 18px;border-radius:10px 10px 0 0;display:flex;align-items:center;justify-content:space-between}
+#update-notice-head h3{color:#fff;font-size:16px}
+#update-notice-close{background:transparent;color:#fff;font-size:16px;padding:2px 8px;border-radius:4px}
+#update-notice-close:hover{background:rgba(255,255,255,.15)}
+#update-notice-body{padding:16px 18px}
+#update-notice-body .notice-date{font-size:13px;color:#888;font-weight:700;margin-bottom:10px}
+#update-notice-body ol{padding-left:18px;display:flex;flex-direction:column;gap:8px}
+#update-notice-body li{font-size:14px;line-height:1.5;color:#333}
+#update-notice-body li .sub{font-size:12.5px;color:#777;margin-top:3px;padding-left:2px;line-height:1.5}
+#update-notice-foot{padding:10px 18px 16px;display:flex;justify-content:flex-end;gap:8px}
+#update-notice-foot label{font-size:12.5px;color:#666;display:flex;align-items:center;gap:5px;margin-right:auto;cursor:pointer}
+
+/* 예비조사/감리/조치확인 강조 (숫자별 확인 버튼) — 인력 전체가 아니라 해당 숫자만 강조, 버튼을 눌러야만 강조됨 */
+.mds-num{display:inline-block;border-radius:3px;padding:0 2px}
+.mds-num-hl-pre{background:#1565c0 !important;color:#fff !important;border-radius:3px;padding:0 4px;font-weight:900}
+.mds-num-hl-audit{background:#6a1b9a !important;color:#fff !important;border-radius:3px;padding:0 4px;font-weight:900}
+.mds-num-hl-post{background:#c62828 !important;color:#fff !important;border-radius:3px;padding:0 4px;font-weight:900}
 
 /* Expert custom entries */
 .expert-custom{background:#e8f5e9;border:1px solid #a5d6a7;border-radius:3px;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;margin:2px 3px;font-size:13px;color:#1b5e20;font-weight:600}
@@ -189,6 +204,25 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
 /* Scrollable table wrapper */
 #table-wrap{overflow-x:auto;border-radius:8px}
 
+/* ── 표장표용 표 생성 모달 ── */
+#assign-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:2000;display:none;align-items:center;justify-content:center;padding:20px}
+#assign-modal-overlay.open{display:flex}
+#assign-modal{background:#fff;border-radius:10px;max-width:960px;width:100%;max-height:85vh;overflow-y:auto;padding:20px 22px;position:relative;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+#assign-modal h3{margin-bottom:4px}
+#assign-modal p.hint{font-size:13px;color:#666;margin-bottom:12px}
+#assign-modal-close{position:absolute;top:14px;right:16px;background:#e0e0e0;border:none;border-radius:50%;width:28px;height:28px;font-size:15px;cursor:pointer;line-height:1}
+#assign-modal-close:hover{background:#ccc}
+#assign-table-wrap{overflow-x:auto;margin-top:4px}
+#assign-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+#assign-table th{background:#1a2e4a;color:#fff;padding:7px 9px;border:1px solid #2b4a78;white-space:nowrap}
+#assign-table td{border:1px solid #ccc;text-align:center}
+#assign-table tr:nth-child(even) td{background:#f8f9fc}
+#assign-modal-actions{display:flex;gap:8px;margin-top:14px}
+
+/* ── 표 드래그 셀 선택 (메인 표 + 표장표용 표 공통) ── */
+#schedule-table tbody, #assign-table tbody{user-select:none}
+#schedule-table td.cell-selected, #assign-table td.cell-selected{background:#cfe3ff !important;outline:2px solid #1976d2;outline-offset:-2px}
+
 @media(max-width:1200px){
   #pool-row{flex-wrap:wrap}
   #pool-row .pool-group{flex:0 0 calc(50% - 5px)}
@@ -205,6 +239,44 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
 </head>
 <body>
 <div id="diff-tooltip"></div>
+
+<!-- 업데이트 공지 팝업 -->
+<div id="update-notice-overlay">
+  <div id="update-notice">
+    <div id="update-notice-head">
+      <h3>📢 업데이트 안내</h3>
+      <button id="update-notice-close" onclick="closeUpdateNotice()">✕</button>
+    </div>
+    <div id="update-notice-body">
+      <div class="notice-date">2026.07.07 업데이트</div>
+      <ol>
+        <li>예비조사/감리/조치확인 강조 버튼 추가</li>
+        <li>표장표 생성 버튼 추가
+          <div class="sub">자동화가 늦을 때를 대비하여 만들었지만 안티에일리어싱이나 셀 여백 등의 문제로 붙여넣기가 어렵습니다. 아직은 참고하는 용도로만 사용 가능합니다.</div>
+        </li>
+        <li>전문가 직접 입력 시 전문가 인력이 없는 경우 0 대신 -로 표기되도록 수정</li>
+        <li>메인표 셀 기반으로 복사할 수 있도록 수정
+          <div class="sub">기존 텍스트만 복사되는 기능을 수정하였습니다.</div>
+        </li>
+      </ol>
+    </div>
+    <div id="update-notice-foot">
+      <button class="btn-gray btn-sm" onclick="closeUpdateNotice()">닫기</button>
+    </div>
+  </div>
+</div>
+<div id="assign-modal-overlay" onclick="if(event.target===this) closeAssignModal()">
+  <div id="assign-modal">
+    <button id="assign-modal-close" onclick="closeAssignModal()">✕</button>
+    <h3>📋 표장표용 표</h3>
+    <p class="hint">표 안의 셀을 드래그하여 선택 후 복사(Ctrl+C)하거나, "클립보드에 복사" 버튼을 눌러 Excel/한글/PPT에 붙여넣으세요.</p>
+    <div id="assign-table-wrap"></div>
+    <div id="assign-modal-actions">
+      <button class="btn-primary" onclick="copyAssignTable()">📎 클립보드에 복사</button>
+      <button class="btn-gray" onclick="closeAssignModal()">닫기</button>
+    </div>
+  </div>
+</div>
 <div id="app">
 <div id="topbar">
   <h1>📋 감리 일정 분석기</h1>
@@ -262,8 +334,13 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
         <button class="btn-save" style="flex:1" onclick="saveSnapshot()" title="JSON 파일로 내보내기 (다운로드)">💾 JSON 저장</button>
         <button class="btn-gray" style="flex:1" onclick="clearHighlights()">🧹 강조 초기화</button>
       </div>
-      <button class="btn-orange" onclick="highlightCorrections()">🔔 시정조치결과 확인</button>
+      <div style="display:flex;gap:6px">
+        <button class="btn-orange btn-sm" style="flex:1" onclick="highlightCorrections('pre')" title="예비조사(첫번째 숫자) &gt; 0 강조">🔎 예비조사 확인</button>
+        <button class="btn-orange btn-sm" style="flex:1" onclick="highlightCorrections('audit')" title="감리(두번째 숫자) &gt; 0 강조">🔔 감리 확인</button>
+        <button class="btn-orange btn-sm" style="flex:1" onclick="highlightCorrections('post')" title="조치확인(세번째 숫자) &gt; 0 강조">🚨 조치확인 확인</button>
+      </div>
       <button class="btn-gray" onclick="clearChecks()">☐ 체크 초기화</button>
+      <button class="btn-primary" onclick="openAssignModal()">📋 표장표용 표 생성</button>
     </div>
   </div>
 
@@ -274,6 +351,8 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
     <span><span class="dot" style="background:#fff3e0;border:1px solid #ff9800"></span> 변경됨</span>
     <span><span class="dot" style="background:#e8f5e9;border:1px solid #43a047"></span> 추가됨</span>
     <span><span class="dot" style="background:#ffebee;border:1px solid #e53935"></span> 삭제됨</span>
+    <span><span class="dot" style="background:#eef4ff;border:1px solid #1565c0"></span> 예비조사 &gt; 0</span>
+    <span><span class="dot" style="background:#f5eefc;border:1px solid #6a1b9a"></span> 감리 &gt; 0</span>
     <span><span class="dot" style="background:#ffcdd2;border:1px solid #c62828"></span> 조치확인 &gt; 0</span>
   </div>
 
@@ -326,9 +405,19 @@ let compareData = null;
 let customExperts = [];
 let activeHL = null;
 let checkedCells = new Set();
-let correctionMode = false;
+let correctionMode = null; // null | 'pre' | 'audit' | 'post'
 let gradeOverrides = {};
 let diffVisible = true;
+
+// 감리원 등급을 실제 표기용 등급으로 변환 (테스터/전문가 → 전문가로 통일)
+function getEffectiveGrade(name, info){
+  if(gradeOverrides[name]) return gradeOverrides[name];
+  if(info.grade === '테스터') return '전문가';  // 등급이 테스터여도 배지는 전문가로 표기
+  if(info.grade === '전문가') return '전문가';
+  if(info.grade === '수석감리원') return '수석감리원';
+  if(info.grade === '감리원') return '감리원';
+  return '전문가'; // 등급 정보가 없어도 '확인필요' 대신 전문가로 표기
+}
 
 // ── 저장/불러오기 ──────────────────────────────────────────────
 // 주 저장: JSON 파일 내보내기/불러오기 (깃허브·file:// 환경 완벽 호환)
@@ -558,6 +647,21 @@ function parsePortalHTML(html){
       }
       if(!name) return;
 
+      // ── 상근여부 / 감리원증 번호 추출 ──
+      // 담당분야 칸 개수가 섹션마다 달라(감리원팀: 1칸(colspan2), 전문가: 2칸 분리) 위치 고정 대신
+      // '상근'/'비상근' 텍스트를 기준으로 그 다음 칸(등급) → 그 다음 칸(감리원증) 순으로 탐색
+      const rowTds = Array.from(row.querySelectorAll('td'));
+      let residency = '', certNo = '';
+      const residencyIdx = rowTds.findIndex(td => {
+        const t = td.textContent.trim();
+        return t === '상근' || t === '비상근';
+      });
+      if(residencyIdx >= 0){
+        residency = rowTds[residencyIdx].textContent.trim();
+        const certTd = rowTds[residencyIdx + 2]; // 상근(+0) → 감리원등급(+1) → 감리원증(+2)
+        if(certTd) certNo = certTd.textContent.trim().replace(/\s+/g,' ');
+      }
+
       const cells = Array.from(row.querySelectorAll('td'));
       let mainField = '', subField = '', separateCategoryField = '', expertSubGroup = '';
 
@@ -634,7 +738,7 @@ function parsePortalHTML(html){
       });
 
       personFieldMap[name] = field || '';
-      personGradeMap[name] = { grade, group: currentGroup, expertSubGroup };
+      personGradeMap[name] = { grade, group: currentGroup, expertSubGroup, residency, certNo };
       if(!portalOrder.find(p => p.name === name)){
         portalOrder.push({ name, group: currentGroup, expertSubGroup });
       }
@@ -791,7 +895,7 @@ function renderTable(){
       </td>
       <td class="total-cell" data-ci="total-md-${si}">${total}</td>
       <td class="remain-cell${customExperts.length ? ' active' : ''}" data-ci="remain-${si}" id="remain-cell-${si}">${customExperts.length ? remainMD : '-'}</td>
-      <td class="remain-cell${customExperts.length ? ' active' : ''}" data-ci="custmd-${si}" id="custmd-cell-${si}" style="${customExperts.length ? 'color:#1b5e20' : ''}">${customExperts.length ? custMD : '-'}</td>
+      <td class="remain-cell${customExperts.length ? ' active' : ''}" data-ci="custmd-${si}" id="custmd-cell-${si}" style="${customExperts.length ? 'color:#1b5e20' : ''}">${customExperts.length ? (custMD || '-') : '-'}</td>
       <td class="people-cell" data-ci="people-audit-${si}">${renderPeopleChips(aEntry.people, si)}</td>
       <td class="people-cell" data-ci="people-expert-${si}">${renderPeopleChips(eEntry.people, si)}</td>
     </tr>`;
@@ -801,6 +905,7 @@ function renderTable(){
   document.getElementById('table-wrap').innerHTML = html;
   attachCellClickHandlers();
   attachChipHandlers();
+  attachDragSelection('schedule-table');
   renderPersonnelPool();
 }
 
@@ -810,15 +915,20 @@ function renderPeopleChips(people, stageIdx){
 }
 
 function renderChipHTML(p, stageIdx, diffClass, diffTip){
-  const corrClass = correctionMode && p.post > 0 ? ' 조치-hl' : '';
   const customNames = new Set(customExperts.map(e => e.name));
   const customClass = customNames.has(p.name) ? ' chip-custom-hl' : '';
   const dClass = diffClass ? ` ${diffClass}` : '';
   const tipAttr = diffTip ? ` data-diff-tip="${diffTip}"` : '';
   const field = p.field ? `<span class="field">[${p.field}]</span>` : '';
-  const postStr = p.post > 0 ? `<span class="mds-post">${p.post}</span>` : '';
-  const mdsStr = `<span class="mds">${p.pre}:${p.audit}:${p.post > 0 ? '' : p.post}</span>${postStr}`;
-  return `<span class="person-chip${corrClass}${customClass}${dClass}" data-name="${p.name}" data-field="${p.field||''}" data-stage="${stageIdx}" data-mds="${p.pre}:${p.audit}:${p.post}"${tipAttr}>
+  // 예비조사/감리/조치확인 확인 버튼을 눌렀을 때 인력 전체가 아니라 해당 숫자만 강조되도록
+  // pre/audit/post 각 숫자를 개별 span(data-k)으로 분리해서 렌더링
+  const hl = (k) => correctionMode === k && (p[k] || 0) > 0 ? ` mds-num-hl-${k}` : '';
+  const mdsStr = `<span class="mds">`
+    + `<span class="mds-num${hl('pre')}" data-k="pre">${p.pre}</span>:`
+    + `<span class="mds-num${hl('audit')}" data-k="audit">${p.audit}</span>:`
+    + `<span class="mds-num${hl('post')}" data-k="post">${p.post}</span>`
+    + `</span>`;
+  return `<span class="person-chip${customClass}${dClass}" data-name="${p.name}" data-field="${p.field||''}" data-stage="${stageIdx}" data-mds="${p.pre}:${p.audit}:${p.post}"${tipAttr}>
     <span class="name">${p.name}</span>
     ${mdsStr}
   </span>`;
@@ -880,12 +990,13 @@ function attachCellClickHandlers(){
 
 // ── HIGHLIGHT CONTROLS ─────────────────────────────────────────
 function clearHighlights(){
-  document.querySelectorAll('.person-chip').forEach(c => c.classList.remove('hl-name','hl-field','조치-hl'));
+  document.querySelectorAll('.person-chip').forEach(c => c.classList.remove('hl-name','hl-field'));
+  document.querySelectorAll('.mds-num').forEach(n => n.classList.remove('mds-num-hl-pre','mds-num-hl-audit','mds-num-hl-post'));
   document.querySelectorAll('.pool-person').forEach(c => c.classList.remove('hl-name'));
   document.querySelectorAll('.pool-field-header').forEach(h => h.classList.remove('hl-field-active'));
   document.querySelectorAll('.pool-person-field').forEach(el => el.classList.remove('field-hl-active'));
   activeHL = null;
-  correctionMode = false;
+  correctionMode = null;
 }
 
 function clearChecks(){
@@ -893,12 +1004,17 @@ function clearChecks(){
   document.querySelectorAll('td.cell-checked').forEach(td => td.classList.remove('cell-checked'));
 }
 
-function highlightCorrections(){
+// type: 'pre'(예비조사) | 'audit'(감리) | 'post'(조치확인) — 홍길동 3:1:2 중 해당 순서의 숫자만 강조 (인력 전체 X)
+function highlightCorrections(type){
+  // 같은 버튼을 다시 누르면 강조 해제 (토글)
+  if(correctionMode === type){ clearHighlights(); return; }
   clearHighlights();
-  correctionMode = true;
+  correctionMode = type;
   document.querySelectorAll('.person-chip').forEach(chip => {
-    const mds = (chip.dataset.mds || '').split(':');
-    if((parseInt(mds[2]) || 0) > 0) chip.classList.add('조치-hl');
+    const numEl = chip.querySelector(`.mds-num[data-k="${type}"]`);
+    if(numEl && (parseInt(numEl.textContent) || 0) > 0){
+      numEl.classList.add(`mds-num-hl-${type}`);
+    }
   });
 }
 
@@ -1211,15 +1327,6 @@ function renderPersonnelPool(){
     });
   });
 
-  function getEffectiveGrade(name, info){
-    if(gradeOverrides[name]) return gradeOverrides[name];
-    if(info.grade === '테스터') return '전문가';  // 등급이 테스터여도 배지는 전문가로 표기
-    if(info.grade === '전문가') return '전문가';
-    if(info.grade === '수석감리원') return '수석감리원';
-    if(info.grade === '감리원') return '감리원';
-    return '확인필요';
-  }
-
   const customSelectedNames = new Set(customExperts.map(e => e.name));
 
   function renderPoolPerson(name, info){
@@ -1228,7 +1335,8 @@ function renderPersonnelPool(){
     const field = info.field || '';
     const isCustom = customSelectedNames.has(name);
     const customCls = isCustom ? ' custom-selected' : '';
-    const mdStr = `${info.pre}:${info.audit}:${info.post}`;
+    const totalMD = (info.pre||0) + (info.audit||0) + (info.post||0);
+    const mdStr = `${totalMD}MD`;
     const grades = ['자동','수석감리원','감리원','전문가'];
     const cur = gradeOverrides[name] || '';
     const popupItems = grades.map(g =>
@@ -1245,7 +1353,7 @@ function renderPersonnelPool(){
           <div class="grade-popup">${popupItems}</div>
         </div>
         <span class="pool-person-name">${name}</span>
-        <span class="pool-person-mds" style="flex:1">${mdStr}</span>
+        <span class="pool-person-mds" style="flex:1" title="예비조사:감리:조치확인 = ${info.pre}:${info.audit}:${info.post}">${mdStr}</span>
       </div>
     </div>`;
   }
@@ -1336,11 +1444,316 @@ function setGradeOverride(name, value){
   renderPersonnelPool();
 }
 
+// ── 표장표용 표 생성 ──────────────────────────────────────────
+// 글자 서식(글꼴/크기/색상) 커스터마이징 기능은 제거됨.
+// 추후 별도의 바닐라 기준(색상/폰트 등)을 정해서 다시 추가할 예정.
+// 지금은 표 생성 시 고정된 기본 서식만 사용합니다.
+const ASSIGN_STYLE_DEFAULT = {
+  font: '맑은 고딕', size: 11,
+  headBg: '#1a2e4a', headFg: '#ffffff',
+  bodyFg: '#222222', border: '#999999'
+};
+
+function getAssignStyle(){
+  return Object.assign({}, ASSIGN_STYLE_DEFAULT);
+}
+
+function openAssignModal(){
+  if(!parsedData){ alert('먼저 파일을 업로드해주세요.'); return; }
+  buildAssignmentTable();
+  document.getElementById('assign-modal-overlay').classList.add('open');
+}
+
+function closeAssignModal(){
+  document.getElementById('assign-modal-overlay').classList.remove('open');
+}
+
+function buildAssignmentTable(){
+  const { stages, personGradeMap, personFieldMap, portalOrder } = parsedData;
+  const style = getAssignStyle();
+
+  const rows = (portalOrder || []).map(({ name }) => {
+    const info = personGradeMap[name] || {};
+    const field = personFieldMap[name] || '';
+
+    // 감리 단계: 해당 인력이 MD를 투입한 모든 단계명을 일정 순서대로 연결.
+    // '/' 는 모두 "글자(엔터)/(엔터)글자" 형태로 줄바꿈을 포함해 표기
+    const stageNames = [];
+    stages.forEach(s => {
+      const inAudit  = s.감리원 && s.감리원.people.some(p => p.name === name && (p.pre + p.audit + p.post) > 0);
+      const inExpert = s.전문가 && s.전문가.people.some(p => p.name === name && (p.pre + p.audit + p.post) > 0);
+      if((inAudit || inExpert) && !stageNames.includes(s.stage)) stageNames.push(s.stage);
+    });
+    const stageLabel = stageNames.join('<br>/<br>');
+
+    // 소속 및 상근여부: 제안사(엔터)/(엔터)상근(또는 비상근)
+    const residency = info.residency || '';
+    const affil = residency ? `제안사<br>/<br>${residency}` : '제안사';
+
+    // 감리원 번호: '-' 이거나 없으면 '전문가'로 표기
+    const certNo = (info.certNo || '').trim();
+    const certDisplay = (!certNo || certNo === '-') ? '전문가' : certNo;
+
+    // 구분: 수석감리원 / 감리원 / 전문가 (테스터·등급 미상 모두 '전문가'로 표기, '확인필요' 표기 없음)
+    const grade = getEffectiveGrade(name, info);
+
+    // 현장감리 투입율: 항상 100% 고정
+    const inputRate = '100%';
+
+    // 유사 감리 및 경력, 자격 요약: 실제로 3개의 별도 행(셀)로 분리 (수기 작성용 템플릿 - 값은 추후 직접 채워 넣음)
+    const careerLines = [
+      '유사 감리 실적 : ? / 감리 이외의 경력 : ?년 ?개월',
+      '[ 분야 ] 이력',
+      '[ 주요 경력 및 자격 ]<br>- 주요 경력 및 이력 요약'
+    ];
+
+    // 감리원 명 표기: 글자 사이에 공백을 넣어 표시 (예: 홍길동 → 홍 길 동)
+    const nameSpaced = name.split('').join(' ');
+
+    return { stageLabel, field, affil, name, nameSpaced, certDisplay, grade, inputRate, careerLines };
+  });
+
+  // 글꼴/크기/색상은 <style> 클래스가 아니라 각 셀에 인라인 style로 직접 심어서,
+  // 표를 복사(outerHTML)했을 때 외부 CSS 없이도 PPT/한글/Excel에 서식이 그대로 유지되도록 함
+  const fontFam = `'${style.font}', 'Malgun Gothic', sans-serif`;
+  const FONT_BOLD   = `'KoPub돋움체 Bold','맑은 고딕','Malgun Gothic',sans-serif`;
+  const FONT_MEDIUM = `'KoPub돋움체 Medium','맑은 고딕','Malgun Gothic',sans-serif`;
+
+  // 셀 여백: 좌우 0.09cm, 상하 0.12cm (기본). [ 분야 ] 이력 셀만 위 0cm / 아래 0.09cm
+  const PAD_BASE  = 'padding-top:0.12cm;padding-right:0.09cm;padding-bottom:0.12cm;padding-left:0.09cm';
+  const PAD_FIELD = 'padding-top:0;padding-right:0.09cm;padding-bottom:0.09cm;padding-left:0.09cm';
+
+  const thStyle = `background:${style.headBg};color:${style.headFg};font-family:${fontFam};font-size:${style.size}pt;font-weight:700;${PAD_BASE};border:1px solid ${style.border};white-space:nowrap;text-align:center`;
+  const cellBorder = `border:1px solid ${style.border};text-align:center;vertical-align:middle`;
+
+  // 자간(letter-spacing)은 모두 "좁게" 지정 → 음수 값으로 적용
+  const LS_MID   = 'letter-spacing:-0.8pt'; // 감리 분야, 소속 및 상근여부, 감리원 번호, 구분, 현장감리 투입율
+  const LS_STAGE = 'letter-spacing:-0.5pt'; // 감리 단계, 유사 감리 실적 : ? ...
+  const LS_FIELD = 'letter-spacing:-1pt';   // [ 분야 ] 이력
+  const LS_CAREER= 'letter-spacing:-0.7pt'; // [ 주요 경력 및 자격 ] ...
+
+  // 컬럼별 서식 (요청된 폰트/크기/색상/자간 기준)
+  const stageStyle     = `${PAD_BASE};${cellBorder};font-family:${FONT_BOLD};font-size:10pt;font-weight:700;color:rgb(0,0,0);${LS_STAGE}`;      // 감리 단계
+  const nameStyle       = `${PAD_BASE};${cellBorder};font-family:${FONT_BOLD};font-size:10pt;font-weight:700;color:rgb(0,0,0)`;                  // 감리원 명 (자간 지정 없음)
+  const midColStyle    = `${PAD_BASE};${cellBorder};font-family:${FONT_MEDIUM};font-size:10pt;font-weight:500;color:rgb(64,64,64);${LS_MID}`;   // 감리 분야, 소속 및 상근여부, 감리원 번호, 구분
+  const inputRateStyle = `${PAD_BASE};${cellBorder};font-family:${FONT_MEDIUM};font-size:10pt;font-weight:500;color:rgb(64,64,64);${LS_MID}`;   // 현장감리 투입율 (서식은 위 4개 열과 동일, 변수만 구분)
+  const line0Style     = `${PAD_BASE};${cellBorder};text-align:left;font-family:${FONT_BOLD};font-size:10pt;font-weight:700;color:rgb(17,60,110);${LS_STAGE}`; // 유사 감리 실적 : ? ...
+  const line1Style     = `${PAD_FIELD};${cellBorder};text-align:left`;                                                                           // [ 분야 ] 이력 (내부는 span으로 분리 서식)
+  const line2Style     = `${PAD_BASE};${cellBorder};text-align:left;font-family:${FONT_BOLD};font-size:9pt;font-weight:700;color:rgb(64,64,64);${LS_CAREER}`;   // [ 주요 경력 및 자격 ] ...
+
+  const tableStyle = `border-collapse:collapse;width:100%;font-family:${fontFam};font-size:${style.size}pt`;
+
+  let html = `<table id="assign-table" style="${tableStyle}"><thead><tr>
+    <th style="${thStyle}">감리 단계</th><th style="${thStyle}">감리 분야</th><th style="${thStyle}">소속 및 상근여부</th><th style="${thStyle}">감리원 명</th><th style="${thStyle}">감리원 번호</th><th style="${thStyle}">구분</th><th style="${thStyle}">현장감리 투입율</th><th style="${thStyle}">유사 감리 및 경력, 자격 요약</th>
+  </tr></thead><tbody>`;
+  rows.forEach((r, i) => {
+    const bg = i % 2 === 1 ? ';background:#f8f9fc' : ';background:#ffffff';
+    // [ 분야 ] 이력: 대괄호 부분과 "이력" 부분을 각각 다른 서식으로 분리 (자간 -1pt는 공통 적용)
+    const line1Html = `<span style="font-family:${FONT_BOLD};font-size:9pt;font-weight:700;color:rgb(230,0,18);${LS_FIELD}">[ 분야 ]</span> `
+      + `<span style="font-family:${FONT_BOLD};font-size:9pt;font-weight:700;color:rgb(70,70,70);${LS_FIELD}">이력</span>`;
+    // 인력당 3개 행으로 분리: 감리단계~투입율은 3행에 걸쳐 세로 병합(rowspan), '유사 감리 및 경력, 자격 요약'만 행마다 별도 셀
+    html += `<tr>
+      <td style="${stageStyle}${bg}" rowspan="3">${r.stageLabel || ''}</td>
+      <td style="${midColStyle}${bg}" rowspan="3">${r.field || ''}</td>
+      <td style="${midColStyle}${bg}" rowspan="3">${r.affil}</td>
+      <td style="${nameStyle}${bg}" rowspan="3">${r.nameSpaced}</td>
+      <td style="${midColStyle}${bg}" rowspan="3">${r.certDisplay}</td>
+      <td style="${midColStyle}${bg}" rowspan="3">${r.grade}</td>
+      <td style="${inputRateStyle}${bg}" rowspan="3">${r.inputRate}</td>
+      <td style="${line0Style}${bg}">${r.careerLines[0]}</td>
+    </tr>
+    <tr><td style="${line1Style}${bg}">${line1Html}</td></tr>
+    <tr><td style="${line2Style}${bg}">${r.careerLines[2]}</td></tr>`;
+  });
+  html += '</tbody></table>';
+
+  document.getElementById('assign-table-wrap').innerHTML = html;
+  attachDragSelection('assign-table', true); // 표장표용 표는 셀 1개만 클릭해도 선택 유지 → Ctrl+C로 셀 1개도 복사 가능
+}
+
+async function copyAssignTable(){
+  const table = document.getElementById('assign-table');
+  if(!table) return;
+  const html = table.outerHTML;
+  const text = Array.from(table.rows)
+    .map(tr => Array.from(tr.cells).map(td => td.textContent.trim()).join('\t'))
+    .join('\n');
+
+  try{
+    if(navigator.clipboard && window.ClipboardItem){
+      const item = new ClipboardItem({
+        'text/plain': new Blob([text], { type: 'text/plain' }),
+        'text/html':  new Blob([html], { type: 'text/html' })
+      });
+      await navigator.clipboard.write([item]);
+    } else if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(text);
+    } else {
+      throw new Error('clipboard API 미지원');
+    }
+    alert('✅ 표가 클립보드에 복사되었습니다. Excel/한글 문서에 붙여넣기 하세요.');
+  } catch(e){
+    // 폴백: 표 전체를 선택 상태로 만들어 수동 복사를 유도
+    const range = document.createRange();
+    range.selectNode(table);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    alert('클립보드 자동 복사에 실패했습니다. 표가 선택되었으니 Ctrl+C(또는 Cmd+C)로 복사해주세요.');
+  }
+}
+
 // CSS.escape polyfill
 if(!window.CSS || !CSS.escape){
   CSS = window.CSS || {};
   CSS.escape = function(v){ return v.replace(/[\s!"#$%&'()*+,./:;<=>?@[\\\]^`{|}~]/g,'\\$&'); };
 }
+
+// ── 표 드래그 셀 선택 (열/행만 정확히 복사) — 메인 표 & 표장표용 표 공통 ──
+let tableIsSelecting = false;
+let tableSelAnchor = null;   // {r,c}
+let tableSelCells = [];      // 현재 선택된 td 배열
+let tableSelRect = null;     // {r1,r2,c1,c2,grid}
+let tableSelTableId = null;  // 현재 드래그 중인 표 id
+let tableSelKeepSingle = false; // 드래그 없이 셀 1개만 클릭해도 선택을 유지할지 (표장표용 표는 유지 → 셀 1개만 복사 가능)
+let tableSelGrid = null;     // 현재 드래그 중인 표의 가상 그리드 (드래그 시작 시 1회 계산해서 재사용, rowspan/colspan 대응)
+
+// grid[r][c] = 그 좌표를 차지하는 td (rowspan/colspan으로 병합된 칸은 원본 td를 그대로 참조)
+function buildTableGrid(table){
+  const tbody = table.querySelector('tbody');
+  if(!tbody) return [];
+  const trs = Array.from(tbody.children);
+  const grid = [];
+  for(let r = 0; r < trs.length; r++){
+    if(!grid[r]) grid[r] = [];
+    let c = 0;
+    const cells = Array.from(trs[r].children);
+    for(const td of cells){
+      while(grid[r][c] !== undefined) c++; // 위쪽 행의 rowspan으로 이미 채워진 칸은 건너뜀
+      const rowspan = td.rowSpan || 1;
+      const colspan = td.colSpan || 1;
+      for(let dr = 0; dr < rowspan; dr++){
+        if(!grid[r+dr]) grid[r+dr] = [];
+        for(let dc = 0; dc < colspan; dc++){
+          grid[r+dr][c+dc] = td;
+        }
+      }
+      c += colspan;
+    }
+  }
+  return grid;
+}
+
+function tableCellRC(td, grid){
+  const tr = td.parentElement;
+  const tbody = tr.parentElement;
+  const r = Array.from(tbody.children).indexOf(tr);
+  let c = (grid && grid[r] ? grid[r] : []).indexOf(td);
+  if(c < 0) c = td.cellIndex; // 폴백
+  return { r, c };
+}
+
+function clearTableSelection(){
+  tableSelCells.forEach(td => td.classList.remove('cell-selected'));
+  tableSelCells = [];
+  tableSelRect = null;
+}
+
+function applyTableSelectionRect(tableId, a, b, grid){
+  clearTableSelection();
+  const table = document.getElementById(tableId);
+  if(!table) return;
+  if(!grid) grid = buildTableGrid(table);
+  const r1 = Math.min(a.r, b.r), r2 = Math.max(a.r, b.r);
+  const c1 = Math.min(a.c, b.c), c2 = Math.max(a.c, b.c);
+  const seen = new Set();
+  for(let r = r1; r <= r2; r++){
+    const row = grid[r] || [];
+    for(let c = c1; c <= c2; c++){
+      const td = row[c];
+      if(td && !seen.has(td)){
+        seen.add(td);
+        td.classList.add('cell-selected');
+        tableSelCells.push(td);
+      }
+    }
+  }
+  tableSelRect = { r1, r2, c1, c2, grid };
+}
+
+// tableId: 'schedule-table' 또는 'assign-table' 등 어떤 표든 적용 가능
+// keepSingleClick: true면 드래그 없이 셀 하나만 클릭해도 선택이 유지되어 Ctrl+C로 그 셀 하나만 복사 가능
+function attachDragSelection(tableId, keepSingleClick){
+  const table = document.getElementById(tableId);
+  if(!table) return;
+
+  table.addEventListener('mousedown', e => {
+    const td = e.target.closest('td');
+    if(!td || !td.closest('tbody') || td.parentElement.parentElement !== table.querySelector('tbody')) return;
+    tableIsSelecting = true;
+    tableSelTableId = tableId;
+    tableSelKeepSingle = !!keepSingleClick;
+    tableSelGrid = buildTableGrid(table);
+    tableSelAnchor = tableCellRC(td, tableSelGrid);
+    applyTableSelectionRect(tableId, tableSelAnchor, tableSelAnchor, tableSelGrid);
+    e.preventDefault(); // 텍스트 드래그 선택 방지
+  });
+
+  table.addEventListener('mouseover', e => {
+    if(!tableIsSelecting || tableSelTableId !== tableId) return;
+    const td = e.target.closest('td');
+    if(!td || !td.closest('tbody')) return;
+    applyTableSelectionRect(tableId, tableSelAnchor, tableCellRC(td, tableSelGrid), tableSelGrid);
+  });
+}
+
+document.addEventListener('mouseup', () => {
+  if(tableIsSelecting){
+    tableIsSelecting = false;
+    // 드래그 없이 단순 클릭한 경우, keepSingleClick이 아니면 기존처럼 선택 해제
+    // (메인 표는 클릭 = 셀 체크 토글이 우선이라 그대로 두고, 표장표용 표는 셀 1개 복사를 위해 유지)
+    if(!tableSelKeepSingle && tableSelCells.length <= 1) clearTableSelection();
+  }
+});
+
+document.addEventListener('mousedown', e => {
+  // 표 밖을 클릭하면 선택 해제
+  if(!e.target.closest('#schedule-table') && !e.target.closest('#assign-table')) clearTableSelection();
+});
+
+function tableCellText(td){
+  return (td.innerText !== undefined ? td.innerText : td.textContent).trim().replace(/\s+/g, ' ');
+}
+
+document.addEventListener('copy', e => {
+  if(!tableSelRect || tableSelCells.length < 1) return; // 선택된 셀이 없으면 일반 텍스트 복사는 기본 동작 유지
+  e.preventDefault();
+  const { r1, r2, c1, c2, grid } = tableSelRect;
+  const lines = [];
+  const htmlRows = [];
+  const seen = new Set(); // rowspan 병합 셀은 처음 나오는 행에서만 1번 포함 (Excel/한글 붙여넣기 시 중복 방지)
+  for(let r = r1; r <= r2; r++){
+    const row = grid[r] || [];
+    const rowText = [];
+    const rowHtml = [];
+    for(let c = c1; c <= c2; c++){
+      const td = row[c];
+      if(!td || seen.has(td)) continue;
+      seen.add(td);
+      rowText.push(tableCellText(td));
+      // 셀의 인라인 style(글꼴/크기/색상 등)을 그대로 유지해서 복사 — 'cell-selected' 표시용 클래스만 제거
+      const clone = td.cloneNode(true);
+      clone.classList.remove('cell-selected');
+      rowHtml.push(clone.outerHTML);
+    }
+    lines.push(rowText.join('\t'));
+    htmlRows.push('<tr>' + rowHtml.join('') + '</tr>');
+  }
+  const tsv = lines.join('\n');
+  const html = `<table style="border-collapse:collapse">${htmlRows.join('')}</table>`;
+  e.clipboardData.setData('text/plain', tsv);
+  e.clipboardData.setData('text/html', html);
+});
 
 // ── JS Tooltip for data-diff-tip ──────────────────────────────
 (function(){
@@ -1362,6 +1775,25 @@ if(!window.CSS || !CSS.escape){
   document.addEventListener('mouseout', function(e){
     if(!e.target.closest('[data-diff-tip]')) tip.style.display='none';
   });
+})();
+
+// ── 업데이트 공지 팝업 ──────────────────────────────
+// 새 업데이트를 낼 때마다 이 버전 문자열만 바꿔주면,
+// 예전에 닫기를 눌렀던 사용자에게도 새 공지가 다시 표시됩니다.
+const UPDATE_NOTICE_VERSION = '2026-07-07';
+const UPDATE_NOTICE_STORAGE_KEY = 'gamnli_update_notice_seen';
+
+function closeUpdateNotice(){
+  document.getElementById('update-notice-overlay').classList.remove('open');
+  try{ localStorage.setItem(UPDATE_NOTICE_STORAGE_KEY, UPDATE_NOTICE_VERSION); }catch(e){}
+}
+
+(function(){
+  let seen = null;
+  try{ seen = localStorage.getItem(UPDATE_NOTICE_STORAGE_KEY); }catch(e){}
+  if(seen !== UPDATE_NOTICE_VERSION){
+    document.getElementById('update-notice-overlay').classList.add('open');
+  }
 })();
 </script>
 </body>
