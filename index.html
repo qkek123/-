@@ -288,6 +288,12 @@ td.cell-checked .md-cell-sub{color:#fff3e0 !important}
 
     <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0">
 
+    <h3>📅 세부 감리 일정 1</h3>
+    <p class="hint">단계별 예비조사/착수회의/현장감리/종료회의/사후관리 일정표를 PPT로 내려받습니다. 예비조사는 착수회의 7일 전으로 자동 계산됩니다.</p>
+    <button class="btn-green" id="detail-schedule1-pptx-btn" onclick="downloadDetailSchedule1Pptx(this)">📅 세부 감리 일정 1 생성</button>
+
+    <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0">
+
     <h3>🖼️ 사진장표용 생성</h3>
     <p class="hint">전문가(핵심기술/필수기술/보안진단/테스터) 분류별로 사용할 장표 크기와 함께 묶을 분류를 지정한 뒤 PPT로 내려받습니다.<br><span style="color:#888">※ 카드 내부 서식(사진, 문구 배치 등)은 추후 상세 사양에 맞춰 다듬을 예정이며, 현재는 분류·인원 배치 로직을 우선 반영한 시안입니다.</span></p>
     <button class="btn-primary btn-sm" id="photo-assign-toggle-btn" onclick="togglePhotoAssignPanel()">🖼️ 사진장표용 생성</button>
@@ -1883,6 +1889,24 @@ function formatCertNo(text){
   return raw;
 }
 
+// ── 세부 감리 일정 1: 일자 계산 유틸 ────────────────────────────
+// "2026.09.28 (월) - 2026.10.02 (금)"처럼 요일이 섞인 원본 일정 문자열에서
+// "YYYY.MM.DD" 형태의 날짜만 순서대로 뽑아낸다.
+function extractDates(dateText){
+  return ((dateText || '').match(/\d{4}\.\d{2}\.\d{2}/g) || []);
+}
+// "YYYY.MM.DD" 문자열에 day일(음수 가능)을 더해 같은 형식으로 반환
+function shiftDateStr(dateStr, deltaDays){
+  const m = (dateStr || '').match(/(\d{4})\.(\d{2})\.(\d{2})/);
+  if(!m) return dateStr || '';
+  const d = new Date(parseInt(m[1]), parseInt(m[2]) - 1, parseInt(m[3]));
+  d.setDate(d.getDate() + deltaDays);
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}.${mm}.${dd}`;
+}
+
 // 표장표에 들어갈 데이터만 계산 (HTML 렌더링과 PPTX 생성이 이 함수 하나만 공유하도록 분리)
 function computeAssignRows(){
   const { stages, personGradeMap, personFieldMap, portalOrder } = parsedData;
@@ -2158,6 +2182,248 @@ async function downloadAssignPptx(btn){
 
     const today = new Date().toISOString().slice(0, 10);
     await savePatchedPptx(pres, `표장표_${today}.pptx`);
+  } catch(e){
+    console.error(e);
+    alert('PPT 생성 중 오류가 발생했습니다: ' + e.message);
+  } finally {
+    if(btn){ btn.disabled = false; btn.textContent = btnOrigText; }
+  }
+}
+
+// ── 세부 감리 일정 1: 단계별 예비조사~사후관리 일정 계산 ──────────────────
+// parsedData.stages의 "현장 감리" 날짜(범위)만으로 나머지 일정을 역산한다.
+//  - 착수회의 = 현장감리 시작일, 종료회의 = 현장감리 종료일 (단일 날짜면 둘 다 그 날짜)
+//  - 예비조사 및 감리계획 수립 = 착수회의 7일 전
+//  - 감리수행결과보고서 제출 / 시정조치 결과 확인은 특정 날짜가 아니라 "종료회의 후 10일 이내" /
+//    "확인요청 후 5일 이내"라는 고정 문구로 표기 (첨부 프레젠테이션과 동일)
+//  - MD(공수)·일수는 포탈 일정표의 예비조사/감리(=현장감리)/조치확인 열을 그대로 사용
+//    (감리원+전문가 합산). 예비조사·사후관리 일수는 해당 MD가 0보다 크면 1일, 아니면 0일로 계산
+//    (첨부 프레젠테이션 실측값과 일치하는 규칙) — 현장감리 일수는 포탈의 "감리 일수"를 그대로 사용
+//  - 단계명에 "상주"/"상시"/"검수지원"이 들어가면, 첨부 프레젠테이션의 "상주" 단계처럼
+//    예비조사~사후관리 세부 절차 없이 "감리시행 → 소계" 2줄짜리 축약 구조로 표기한다.
+//    이때 "세부 일정"은 검수지원이면 고정 문구 "사업종료 시점", 상주/상시면 현장감리 기간을 그대로 쓴다.
+function isCompactStageName(name){
+  return /상주|상시|검수지원/.test((name || '').trim());
+}
+function compactProcedureLabel(name){
+  return name || '';
+}
+function computeDetailSchedule1Rows(){
+  const { stages } = parsedData;
+  return (stages || []).map(s => {
+    const dates = extractDates(s.date || '');
+    const kickoff = dates[0] || '';
+    const closing = dates[dates.length - 1] || kickoff;
+    const preDate = kickoff ? shiftDateStr(kickoff, -7) : '';
+    const onsiteRange = dates.length >= 2 ? `${dates[0]} ~ ${dates[dates.length - 1]}` : (dates[0] || '');
+
+    const preMD   = (s.감리원?.pre   || 0) + (s.전문가?.pre   || 0);
+    const auditMD = (s.감리원?.audit || 0) + (s.전문가?.audit || 0);
+    const postMD  = (s.감리원?.post  || 0) + (s.전문가?.post  || 0);
+    const preDays   = preMD  > 0 ? 1 : 0;
+    const auditDays = s.days || 0;
+    const postDays  = postMD > 0 ? 1 : 0;
+
+    const isCompact = isCompactStageName(s.stage);
+    const compactDate = /검수지원/.test(s.stage) ? '사업종료 시점' : onsiteRange;
+
+    return {
+      stage: s.stage,
+      preDate, kickoff, onsiteRange, closing,
+      preMD, auditMD, postMD, preDays, auditDays, postDays,
+      subtotalMD:   preMD + auditMD + postMD,
+      subtotalDays: preDays + auditDays + postDays,
+      isCompact,
+      compactLabel: isCompact ? compactProcedureLabel(s.stage) : '',
+      compactDate: isCompact ? compactDate : ''
+    };
+  });
+}
+
+// ── 세부 감리 일정 1 PPTX 다운로드 ──────────────────────────────
+// 첨부해주신 "프레젠테이션1.pptx"의 표를 XML 단위로 실측(위치·열 너비·행 높이·셀 여백·
+// 테두리 색상/굵기·글꼴/크기/색상·정렬)해서 그대로 재현합니다. 단계 수에 따라 표 세로 길이가
+// 늘어나거나 줄어듭니다(맨 위 시작 위치는 원본과 동일하게 고정).
+async function downloadDetailSchedule1Pptx(btn){
+  if(typeof PptxGenJS === 'undefined'){
+    alert('PPT 생성 라이브러리를 아직 불러오지 못했습니다. 인터넷 연결을 확인한 뒤 잠시 후 다시 시도해주세요.');
+    return;
+  }
+  if(!parsedData){ alert('먼저 파일을 업로드해주세요.'); return; }
+
+  const stageRows = computeDetailSchedule1Rows();
+  if(!stageRows.length){ alert('일정 데이터가 없습니다.'); return; }
+
+  btn = btn || document.getElementById('detail-schedule1-pptx-btn');
+  const btnOrigText = btn ? btn.textContent : '';
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ 생성 중...'; }
+
+  try{
+    const pres = new PptxGenJS();
+    pres.layout = 'LAYOUT_WIDE'; // 13.33" x 7.5"
+    pres.author = '감리 일정 분석기';
+    pres.title = '세부 감리 일정 1';
+
+    const FONT_BOLD   = 'KoPub돋움체 Bold';
+    const FONT_MEDIUM = 'KoPub돋움체 Medium';
+
+    // 첨부 프레젠테이션의 표를 실측(EMU)해서 그대로 옮긴 값 (1in = 914400EMU)
+    const colW = [0.8472, 0.8472, 1.6944, 1.6944, 1.5403]; // 합계 6.6221in
+    const tableX = 3.2717, tableY = 0.7635; // 원본 표 좌상단 위치 그대로
+
+    const BORDER_COLOR = 'BFBFBF'; // 원본 테두리색(배경1 25% 어둡게)과 동일
+    const bd  = { pt: 0.5, color: BORDER_COLOR };
+    const bd0 = { pt: 0, color: 'FFFFFF', type: 'none' }; // 원본처럼 표 맨 왼쪽/맨 오른쪽 바깥선은 없음
+    const borderMid   = [bd, bd, bd, bd];
+    const borderLeft  = [bd, bd, bd, bd0];  // 단계(col0) 전용 - 왼쪽 바깥선 없음
+    const borderRight = [bd, bd0, bd, bd];  // 소요 일수 및 공수(col4) 전용 - 오른쪽 바깥선 없음
+
+    const baseOpt = extra => Object.assign({ align: 'center', valign: 'middle', margin: [0, 0, 0, 0] }, extra);
+    const mdLabel = (days, md) => `(${days})일 / (${md})MD`;
+
+    // 원본 실측 채우기색: 단계 열/소계 행은 흰색을 5% 어둡게 한 회색(F2F2F2),
+    // 현장감리·상주감리·검수지원(강조 절차) 줄은 조금 더 진한 회색(F2F2F2 - 실측상 같은 톤)
+    const STAGE_FILL  = 'F2F2F2'; // 단계(col0) 라벨 셀 배경
+    const HILITE_FILL = 'F2F2F2'; // 현장감리 / 상주감리 / 검수지원 절차·일정 셀 배경
+
+    // 원본 실측 행 높이(in). STAGE_ROW_H 7개가 단계 1개 블록(예비조사~소계)에 해당
+    const STAGE_ROW_H = [0.1623, 0.1298, 0.1623, 0.1298, 0.1298, 0.1623, 0.1710];
+    const HEADER_H = 0.1623;
+    const TOTAL_H  = 0.3254;
+
+    const rows = [];
+    const rowH = [];
+
+    rows.push([
+      { text: '단계',              options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: 'D2F0FF' }, border: borderLeft }) },
+      { text: '수행 활동',         options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: 'D2F0FF' }, border: borderMid }) },
+      { text: '수행 절차',         options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: 'D2F0FF' }, border: borderMid }) },
+      { text: '세부 일정',         options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: 'D2F0FF' }, border: borderMid }) },
+      { text: '소요 일수 및 공수', options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: 'D2F0FF' }, border: borderRight }) }
+    ]);
+    rowH.push(HEADER_H);
+
+    let grandTotalMD = 0;
+
+    stageRows.forEach(s => {
+      grandTotalMD += s.subtotalMD;
+
+      // ── 축약형(상주/상시/검수지원): "감리시행 → 소계" 2줄만 표기 ──
+      if(s.isCompact){
+        rows.push([
+          { text: s.stage,    options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', rowspan: 2, fill: { color: STAGE_FILL }, border: borderLeft }) },
+          { text: '감리시행', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 9, color: '000000', border: borderMid }) },
+          { text: s.compactLabel, options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: HILITE_FILL }, border: borderMid }) },
+          { text: s.compactDate,  options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: HILITE_FILL }, border: borderMid }) },
+          { text: mdLabel(s.subtotalDays, s.subtotalMD), options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', border: borderRight }) }
+        ]);
+        rowH.push(STAGE_ROW_H[0]);
+
+        rows.push([
+          { text: '소계', options: baseOpt({ fontFace: FONT_BOLD, fontSize: 10, color: '000000', colspan: 3, fill: { color: STAGE_FILL }, border: borderMid }) },
+          { text: mdLabel(s.subtotalDays, s.subtotalMD), options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: STAGE_FILL }, border: borderRight }) }
+        ]);
+        rowH.push(STAGE_ROW_H[6]);
+        return;
+      }
+
+      // ── 일반형: 예비조사·사후관리는 해당 MD가 0이면 행 자체를 생략 ──
+      const showPre  = s.preMD  > 0;
+      const showPost = s.postMD > 0;
+      const stageRowspan = 5 + (showPre ? 1 : 0) + (showPost ? 1 : 0); // 착수/현장/종료/보고서(4) + 소계(1) + 선택 2개
+
+      let stageCellPushed = false;
+      const pushStageCell = () => {
+        stageCellPushed = true;
+        return { text: s.stage, options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', rowspan: stageRowspan, fill: { color: STAGE_FILL }, border: borderLeft }) };
+      };
+
+      // 1행: 예비조사 (MD가 0보다 클 때만)
+      if(showPre){
+        rows.push([
+          pushStageCell(),
+          { text: '예비조사', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 9, color: '000000', border: borderMid }) },
+          { text: '예비조사 및 감리계획 수립', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) },
+          { text: s.preDate, options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) },
+          { text: mdLabel(s.preDays, s.preMD), options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', border: borderRight }) }
+        ]);
+        rowH.push(STAGE_ROW_H[0]);
+      }
+
+      // 2행: 착수회의 (감리시행/소요 일수 및 공수는 아래 3개 행까지 세로 병합)
+      const kickoffRow = [];
+      if(!stageCellPushed) kickoffRow.push(pushStageCell());
+      kickoffRow.push(
+        { text: '감리시행', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 9, color: '000000', rowspan: 4, border: borderMid }) },
+        { text: '착수회의', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) },
+        { text: s.kickoff, options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) },
+        { text: mdLabel(s.auditDays, s.auditMD), options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', rowspan: 4, border: borderRight }) }
+      );
+      rows.push(kickoffRow);
+      rowH.push(STAGE_ROW_H[1]);
+
+      // 3행: 현장감리 - 원본처럼 굵게(9pt Bold) + 회색(F2F2F2) 강조
+      rows.push([
+        { text: '현장감리',     options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: HILITE_FILL }, border: borderMid }) },
+        { text: s.onsiteRange, options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: HILITE_FILL }, border: borderMid }) }
+      ]);
+      rowH.push(STAGE_ROW_H[2]);
+
+      // 4행: 종료회의
+      rows.push([
+        { text: '종료회의', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) },
+        { text: s.closing,  options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) }
+      ]);
+      rowH.push(STAGE_ROW_H[3]);
+
+      // 5행: 감리수행결과보고서 제출
+      rows.push([
+        { text: '감리수행결과보고서 제출', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) },
+        { text: '종료회의 후 10일 이내',   options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) }
+      ]);
+      rowH.push(STAGE_ROW_H[4]);
+
+      // 6행: 사후관리(시정조치 결과 확인) - MD가 0보다 클 때만
+      if(showPost){
+        const postRow = [];
+        if(!stageCellPushed) postRow.push(pushStageCell());
+        postRow.push(
+          { text: '사후관리',           options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 9, color: '000000', border: borderMid }) },
+          { text: '시정조치 결과 확인', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) },
+          { text: '확인요청 후 5일 이내', options: baseOpt({ fontFace: FONT_MEDIUM, fontSize: 7, color: '000000', border: borderMid }) },
+          { text: mdLabel(s.postDays, s.postMD), options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', border: borderRight }) }
+        );
+        rows.push(postRow);
+        rowH.push(STAGE_ROW_H[5]);
+      }
+
+      // 7행: 소계 - 원본처럼 옅은 회색(F2F2F2) 배경
+      const subtotalRow = [];
+      if(!stageCellPushed) subtotalRow.push(pushStageCell());
+      subtotalRow.push(
+        { text: '소계', options: baseOpt({ fontFace: FONT_BOLD, fontSize: 10, color: '000000', colspan: 3, fill: { color: STAGE_FILL }, border: borderMid }) },
+        { text: mdLabel(s.subtotalDays, s.subtotalMD), options: baseOpt({ fontFace: FONT_BOLD, fontSize: 9, color: '000000', fill: { color: STAGE_FILL }, border: borderRight }) }
+      );
+      rows.push(subtotalRow);
+      rowH.push(STAGE_ROW_H[6]);
+    });
+
+    // 총계 행
+    rows.push([
+      { text: '단계 감리팀 투입 공수 합계', options: baseOpt({ fontFace: FONT_BOLD, fontSize: 11, color: 'FFFFFF', colspan: 4, fill: { color: '0095DB' }, border: borderLeft }) },
+      { text: `총 ${grandTotalMD} MD`,       options: baseOpt({ fontFace: FONT_BOLD, fontSize: 14, color: '1655A2', fill: { color: 'D3F0FF' }, border: borderRight }) }
+    ]);
+    rowH.push(TOTAL_H);
+
+    const slide = pres.addSlide();
+    slide.addTable(rows, {
+      x: tableX, y: tableY,
+      w: colW.reduce((a, b) => a + b, 0),
+      colW, rowH
+    });
+
+    const today = new Date().toISOString().slice(0, 10);
+    await savePatchedPptx(pres, `세부감리일정1_${today}.pptx`);
   } catch(e){
     console.error(e);
     alert('PPT 생성 중 오류가 발생했습니다: ' + e.message);
