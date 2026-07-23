@@ -2196,9 +2196,9 @@ async function downloadAssignPptx(btn){
 //  - 예비조사 및 감리계획 수립 = 착수회의 7일 전
 //  - 감리수행결과보고서 제출 / 시정조치 결과 확인은 특정 날짜가 아니라 "종료회의 후 10일 이내" /
 //    "확인요청 후 5일 이내"라는 고정 문구로 표기 (첨부 프레젠테이션과 동일)
-//  - MD(공수)·일수는 포탈 일정표의 예비조사/감리(=현장감리)/조치확인 열을 그대로 사용
-//    (감리원+전문가 합산). 예비조사·사후관리 일수는 해당 MD가 0보다 크면 1일, 아니면 0일로 계산
-//    (첨부 프레젠테이션 실측값과 일치하는 규칙) — 현장감리 일수는 포탈의 "감리 일수"를 그대로 사용
+//  - MD(공수)·일수는 포탈 일정표의 예비조사/감리(=현장감리)/조치확인 열 중 "감리원" 값만 사용한다
+//    (전문가 투입분은 세부 감리 일정에서 전부 제외). 예비조사·사후관리 일수는 해당 MD가 0보다
+//    크면 1일, 아니면 0일로 계산 — 현장감리 일수는 포탈의 "감리 일수"를 그대로 사용
 //  - 단계명에 "상주"/"상시"/"검수지원"이 들어가면, 첨부 프레젠테이션의 "상주" 단계처럼
 //    예비조사~사후관리 세부 절차 없이 "감리시행 → 소계" 2줄짜리 축약 구조로 표기한다.
 //    이때 "세부 일정"은 검수지원이면 고정 문구 "사업종료 시점", 상주/상시면 현장감리 기간을 그대로 쓴다.
@@ -2217,9 +2217,9 @@ function computeDetailSchedule1Rows(){
     const preDate = kickoff ? shiftDateStr(kickoff, -7) : '';
     const onsiteRange = dates.length >= 2 ? `${dates[0]} ~ ${dates[dates.length - 1]}` : (dates[0] || '');
 
-    const preMD   = (s.감리원?.pre   || 0) + (s.전문가?.pre   || 0);
-    const auditMD = (s.감리원?.audit || 0) + (s.전문가?.audit || 0);
-    const postMD  = (s.감리원?.post  || 0) + (s.전문가?.post  || 0);
+    const preMD   = (s.감리원?.pre   || 0);
+    const auditMD = (s.감리원?.audit || 0);
+    const postMD  = (s.감리원?.post  || 0);
     const preDays   = preMD  > 0 ? 1 : 0;
     const auditDays = s.days || 0;
     const postDays  = postMD > 0 ? 1 : 0;
