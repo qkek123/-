@@ -15,6 +15,8 @@ h3{font-size:15px;font-weight:600;color:#1a2e4a}
 #topbar{background:#1a2e4a;color:#fff;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 #topbar h1{font-size:18px;font-weight:700;color:#fff;white-space:nowrap}
 #project-title{font-size:15px;color:#a8c4e0;flex:1}
+#selected-sum-box{font-size:13px;color:#fff;background:#ff8f00;padding:6px 14px;border-radius:6px;white-space:nowrap}
+#selected-sum-box strong{font-size:16px;margin:0 2px}
 #main{display:flex;gap:0;flex:1}
 #sidebar{width:300px;min-width:260px;background:#fff;border-right:1px solid #ddd;padding:14px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
 #content{flex:1;padding:16px;overflow-x:auto;background:#f5f5f5}
@@ -91,8 +93,9 @@ button{cursor:pointer;border:none;border-radius:5px;padding:7px 14px;font-size:1
 /* Highlight states */
 .person-chip.hl-name{background:#fff9c4;border-color:#f9a825}
 .person-chip.hl-field{background:#e8f5e9;border-color:#43a047}
-td.cell-checked{background:#fffde7 !important;position:relative}
-td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-size:10px;color:#f9a825;font-weight:700}
+td.cell-checked{background:#ff8f00 !important;color:#fff !important;position:relative}
+td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-size:10px;color:#fff;font-weight:700;text-shadow:0 0 2px rgba(0,0,0,.5)}
+td.cell-checked .md-cell-sub{color:#fff3e0 !important}
 
 /* ── diff highlight 업그레이드 ── */
 .diff-changed{background:#fff3e0 !important;outline:2px solid #ff9800;position:relative}
@@ -215,7 +218,7 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
 #assign-modal{background:#fff;border-radius:10px;max-width:960px;width:100%;max-height:85vh;overflow-y:auto;padding:20px 22px;position:relative;box-shadow:0 6px 24px rgba(0,0,0,.25)}
 #assign-modal h3{margin-bottom:4px}
 #assign-modal p.hint{font-size:13px;color:#666;margin-bottom:12px}
-#assign-modal-close{position:absolute;top:14px;right:16px;background:#e0e0e0;border:none;border-radius:50%;width:28px;height:28px;font-size:15px;cursor:pointer;line-height:1}
+#assign-modal-close{position:absolute;top:14px;right:16px;background:#e0e0e0;border:none;border-radius:50%;width:28px;height:28px;padding:0;font-size:14px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center}
 #assign-modal-close:hover{background:#ccc}
 #assign-table-wrap{overflow-x:auto;margin-top:4px}
 #assign-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
@@ -347,7 +350,7 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
   </div>
 
   <div id="action-section" style="display:none">
-    <button class="btn-assign-highlight" onclick="openAssignModal()">🛠️ 자동화용 생성 (표장표·사진장표 PPT)</button>
+    <button class="btn-assign-highlight" onclick="openAssignModal()">🛠️ 자동화용 생성</button>
     <h3 style="margin:14px 0 6px">⚡ 기능</h3>
     <div style="display:flex;flex-direction:column;gap:6px">
       <div style="display:flex;gap:6px">
@@ -366,7 +369,7 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
   <div id="legend" style="display:none">
     <span><span class="dot" style="background:#fff9c4;border:1px solid #f9a825"></span> 이름 강조</span>
     <span><span class="dot" style="background:#e8f5e9;border:1px solid #43a047"></span> 분야 강조</span>
-    <span><span class="dot" style="background:#fffde7;border:1px solid #fbc02d"></span> 셀 체크됨</span>
+    <span><span class="dot" style="background:#ff8f00;border:1px solid #e65100"></span> 셀 체크됨</span>
     <span><span class="dot" style="background:#fff3e0;border:1px solid #ff9800"></span> 변경됨</span>
     <span><span class="dot" style="background:#e8f5e9;border:1px solid #43a047"></span> 추가됨</span>
     <span><span class="dot" style="background:#ffebee;border:1px solid #e53935"></span> 삭제됨</span>
@@ -384,7 +387,10 @@ td.cell-checked::after{content:'✓';position:absolute;top:2px;right:4px;font-si
     <p>좌측에서 Portal HTML 파일을 업로드하면<br>감리 일정 분석 테이블이 자동으로 생성됩니다.</p>
   </div>
   <div id="result-area" style="display:none">
-    <div id="summary-bar"></div>
+    <div id="summary-row" style="display:flex;align-items:center;flex-wrap:wrap;gap:12px;justify-content:space-between;margin-bottom:14px">
+      <div id="summary-bar" style="margin-bottom:0"></div>
+      <span id="selected-sum-box" style="display:none">선택 합계 <strong id="selected-sum-value">0</strong> MD</span>
+    </div>
     <div id="diff-bar"><p id="diff-msg"></p></div>
     <div class="action-row" id="top-actions" style="display:none"></div>
     <div id="table-wrap"></div>
@@ -813,7 +819,7 @@ function parsePortalHTML(html){
     const people = [];
     if(peopleTd){
       const raw = peopleTd.textContent;
-      const pattern = /([가-힣a-zA-Z]+(?:\s*[가-힣a-zA-Z]+)?)\s*:\s*(\d+)\s*:\s*(\d+)\s*:\s*(\d+)/g;
+      const pattern = /([가-힣a-zA-Z]+\d*(?:\s*[가-힣a-zA-Z]+\d*)?)\s*:\s*(\d+)\s*:\s*(\d+)\s*:\s*(\d+)/g;
       let m;
       while((m = pattern.exec(raw)) !== null){
         const nm = m[1].trim();
@@ -840,6 +846,7 @@ function parsePortalHTML(html){
 // ── RENDER TABLE ───────────────────────────────────────────────
 function renderTable(){
   if(!parsedData) return;
+  checkedCells.clear();
   document.getElementById('placeholder').style.display = 'none';
   document.getElementById('result-area').style.display = '';
   document.getElementById('top-actions').style.display = '';
@@ -993,6 +1000,7 @@ function attachCellClickHandlers(){
       if(!ci) return;
       checkedCells.has(ci) ? (checkedCells.delete(ci), this.classList.remove('cell-checked'))
                            : (checkedCells.add(ci), this.classList.add('cell-checked'));
+      updateSelectedSum();
     });
   });
   table.querySelectorAll('td.people-cell').forEach(td => {
@@ -1003,8 +1011,34 @@ function attachCellClickHandlers(){
       if(!ci) return;
       checkedCells.has(ci) ? (checkedCells.delete(ci), this.classList.remove('cell-checked'))
                            : (checkedCells.add(ci), this.classList.add('cell-checked'));
+      updateSelectedSum();
     });
   });
+  updateSelectedSum();
+}
+
+// 감리원 제안(MD) / 전문가 제안(MD) / 총 제안(MD) 셀 중에서 체크된 것들의 합계를
+// 우측 상단(topbar)에 표시한다.
+function updateSelectedSum(){
+  const box = document.getElementById('selected-sum-box');
+  const valueEl = document.getElementById('selected-sum-value');
+  if(!box || !valueEl) return;
+  let sum = 0, count = 0;
+  checkedCells.forEach(ci => {
+    if(!/^(?:audit-md|expert-md|total-md)-\d+$/.test(ci)) return;
+    const el = document.querySelector(`[data-ci="${CSS.escape(ci)}"]`);
+    if(!el) return;
+    const firstDiv = el.querySelector('div');
+    const val = parseInt((firstDiv ? firstDiv.textContent : el.textContent).trim()) || 0;
+    sum += val;
+    count++;
+  });
+  if(count > 0){
+    valueEl.textContent = sum;
+    box.style.display = '';
+  } else {
+    box.style.display = 'none';
+  }
 }
 
 // ── HIGHLIGHT CONTROLS ─────────────────────────────────────────
@@ -1021,6 +1055,7 @@ function clearHighlights(){
 function clearChecks(){
   checkedCells.clear();
   document.querySelectorAll('td.cell-checked').forEach(td => td.classList.remove('cell-checked'));
+  updateSelectedSum();
 }
 
 // type: 'pre'(예비조사) | 'audit'(감리) | 'post'(조치확인) — 홍길동 3:1:2 중 해당 순서의 숫자만 강조 (인력 전체 X)
@@ -1838,6 +1873,16 @@ function closeAssignModal(){
   document.getElementById('assign-modal-overlay').classList.remove('open');
 }
 
+// 감리원 번호 문자열이 "발급기관명 + 제OOO호" 형태(예: "서울 제125호", "정감협 제303호",
+// "강원 제17호" 등)이면, 기관명이 무엇이든 상관없이 그 사이 공백을 <br>로 바꿔 두 줄로 표기한다.
+// 이 패턴에 맞지 않는 값(예: 그냥 숫자만 있는 번호)은 원본 그대로 반환한다.
+function formatCertNo(text){
+  const raw = (text || '').trim();
+  const m = raw.match(/^(\S+)\s+(제\s*\d+\s*호)$/);
+  if(m) return `${m[1]}<br>${m[2].replace(/\s+/g, '')}`;
+  return raw;
+}
+
 // 표장표에 들어갈 데이터만 계산 (HTML 렌더링과 PPTX 생성이 이 함수 하나만 공유하도록 분리)
 function computeAssignRows(){
   const { stages, personGradeMap, personFieldMap, portalOrder } = parsedData;
@@ -1868,8 +1913,10 @@ function computeAssignRows(){
     const affil = residency ? `제안사<br>/<br>${residency}` : '제안사';
 
     // 감리원 번호: '-' 이거나 없으면 '전문가'로 표기
+    // "서울 제125호" / "정감협 제303호" 처럼 "발급기관명 + 제OOO호" 형태면
+    // 지역/기관명이 서울·강원 등 어디든 상관없이 그 사이 공백을 줄바꿈으로 바꿔준다.
     const certNo = (info.certNo || '').trim();
-    const certDisplay = (!certNo || certNo === '-') ? '전문가' : certNo;
+    const certDisplay = (!certNo || certNo === '-') ? '전문가' : formatCertNo(certNo);
 
     // 구분: 수석감리원 / 감리원 / 전문가 (테스터·등급 미상 모두 '전문가'로 표기, '확인필요' 표기 없음)
     const grade = getEffectiveGrade(name, info);
@@ -1879,7 +1926,7 @@ function computeAssignRows(){
 
     // 유사 감리 및 경력, 자격 요약: 실제로 3개의 별도 행(셀)로 분리 (수기 작성용 템플릿 - 값은 추후 직접 채워 넣음)
     const careerLines = [
-      ' 유사 감리 실적 : ? / 감리 이외의 경력 : ?년 ?개월',
+      ' 유사 감리 실적 : ?건 / 감리 이외의 경력 : ?년 ?개월',
       '[ 분야 ] 이력',
       '[ 주요 경력 및 자격 ]<br>- 주요 경력 및 이력 요약'
     ];
@@ -2042,7 +2089,7 @@ async function downloadAssignPptx(btn){
         { text: r.field || '',               options: cellOpt({ rowspan: 3, fontFace: FONT_MEDIUM, fontSize: 10, color: '404040', charSpacing: -0.8 }) },
         { text: brToRuns(r.affil, {})     ,  options: cellOpt({ rowspan: 3, fontFace: FONT_MEDIUM, fontSize: 10, color: '404040', charSpacing: -0.8 }) },
         { text: r.nameSpaced,                options: cellOpt({ rowspan: 3, fontFace: FONT_BOLD, fontSize: 10, color: '000000', charSpacing: -0.5 }) },
-        { text: r.certDisplay,               options: cellOpt({ rowspan: 3, fontFace: FONT_MEDIUM, fontSize: 10, color: '404040', charSpacing: -0.8 }) },
+        { text: brToRuns(r.certDisplay, {}),  options: cellOpt({ rowspan: 3, fontFace: FONT_MEDIUM, fontSize: 10, color: '404040', charSpacing: -0.8 }) },
         { text: r.grade,                     options: cellOpt({ rowspan: 3, fontFace: FONT_MEDIUM, fontSize: 10, color: '404040', charSpacing: -0.8 }) },
         { text: r.inputRate,                 options: cellOpt({ rowspan: 3, fontFace: FONT_MEDIUM, fontSize: 10, color: '404040', charSpacing: -0.8 }) },
         { text: [
